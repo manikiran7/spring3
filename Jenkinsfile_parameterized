@@ -1,98 +1,139 @@
+// Jenkinsfile_parameterized
 pipeline {
- 
+
     agent any
- 
+
     parameters {
-    gitParameter branchFilter: 'origin/(.*)', defaultValue: 'origin/master', name: 'BRANCH', type: 'PT_BRANCH'
-         
-        booleanParam(defaultValue: false, description: '', name: 'mvn_build')
-        booleanParam(defaultValue: false, description: '', name: 'publish_to_nexus')
-  
+        // This parameter allows you to select a Git branch from the UI
+        gitParameter branchFilter: 'origin/(.*)', defaultValue: 'origin/main', name: 'BRANCH', type: 'PT_BRANCH' // Changed defaultValue to 'main' for common practice
+
+        // Boolean parameters to control pipeline stages
+        booleanParam(defaultValue: true, description: 'Check to perform Maven build', name: 'mvn_build')
+        booleanParam(defaultValue: true, description: 'Check to publish artifact to Nexus', name: 'publish_to_nexus')
+        booleanParam(defaultValue: false, description: 'Check to deploy artifact to Tomcat', name: 'deploy_to_tomcat') // New parameter for Tomcat deployment
     }
+
     tools {
-        // Note: this should match with the tool name configured in your jenkins instance (JENKINS_URL/configureTools/)
-        maven "Maven"
-        
+        // Ensure these names ("Maven3", "Java21") match exactly what's configured
+        // in Jenkins > Manage Jenkins > Tools > Maven installations and JDK installations.
+        maven "Maven3" // Your specified Maven tool name
+        jdk "Java21"   // Your specified Java tool name
     }
+
     environment {
-        // This can be nexus3 or nexus2
+        // --- Nexus Configuration ---
         NEXUS_VERSION = "nexus3"
-        // This can be http or https
         NEXUS_PROTOCOL = "http"
-        // Where your Nexus is running
-        NEXUS_URL = "13.233.66.167:8081/"
-        // Repository where we will upload the artifact
-        NEXUS_REPOSITORY = "ncodeit-helloworld"
-        // Jenkins credential id to authenticate to Nexus OSS
-        NEXUS_CREDENTIAL_ID = "nexus_credentials"
+        NEXUS_URL = "3.93.59.77:8081/" // Your specified Nexus URL
+        NEXUS_REPOSITORY = "codeit-helloworld-releases" // Your specified Nexus repository name
+        NEXUS_CREDENTIAL_ID = "nexus-deploy-credentials" // Your specified Nexus credential ID
+
+        // --- Tomcat Configuration ---
+        TOMCAT_URL = "44.211.225.91:8080" // Base URL for Tomcat (without manager/html)
+        TOMCAT_MANAGER_PATH = "/manager/text/deploy" // Path for deploying WAR files
+        TOMCAT_CONTEXT_PATH = "/spring3" // Context path for your application on Tomcat
+        TOMCAT_MANAGER_CREDENTIAL_ID = "tomcat-manager-credentials" // Your specified Tomcat credential ID
     }
+
     stages {
-        stage("clone code") {
+        stage("Clone Code") {
             steps {
                 script {
-                    
-				    // Let's clone the source
-                    git branch: "${params.BRANCH}", url: 'https://github.com/betawins/parametirize-job.git';
-                   
-                } 
-            }
-        }
-        stage("mvn build") {
-            steps {
-                script {
-				if (params.mvn_build) {
-                    // If you are using Windows then you should use "bat" step
-                    // Since unit testing is out of the scope we skip them
-                    sh '/usr/share/maven/bin/mvn -Dmaven.test.failure.ignore clean package'
-					} else {
-                                echo "no build"
-                            }
+                    echo "Cloning branch: ${params.BRANCH} from repository: ${env.GIT_URL}"
+                    // The Git repository URL
+                    git branch: "${params.BRANCH}", url: 'https://github.com/manikiran7/spring3.git'; // Your specified Git repository URL
                 }
             }
         }
-        stage("publish to nexus") {
+
+        stage("Maven Build") {
+            when {
+                expression { params.mvn_build == true }
+            }
             steps {
                 script {
-				if (params.publish_to_nexus) {
-                    // Read POM xml file using 'readMavenPom' step , this step 'readMavenPom' is included in: https://plugins.jenkins.io/pipeline-utility-steps
+                    echo "Performing Maven build using Java ${tool 'Java21'} and Maven ${tool 'Maven3'}..."
+                    // Using just 'mvn' assumes Maven is correctly set up via 'tools' directive and added to PATH.
+                    // The -Dmaven.test.failure.ignore argument allows the build to continue even if tests fail.
+                    sh 'mvn -Dmaven.test.failure.ignore clean package'
+                }
+            }
+        }
+
+        stage("Publish to Nexus") {
+            when {
+                expression { params.publish_to_nexus == true }
+            }
+            steps {
+                script {
+                    echo "Attempting to publish artifact to Nexus repository: ${NEXUS_REPOSITORY}..."
                     pom = readMavenPom file: "pom.xml";
-                    // Find built artifact under target folder
                     filesByGlob = findFiles(glob: "target/*.${pom.packaging}");
-                    // Print some info from the artifact found
-                    echo "${filesByGlob[0].name} ${filesByGlob[0].path} ${filesByGlob[0].directory} ${filesByGlob[0].length} ${filesByGlob[0].lastModified}"
-                    // Extract the path from the File found
-                    artifactPath = filesByGlob[0].path;
-                    // Assign to a boolean response verifying If the artifact name exists
-                    artifactExists = fileExists artifactPath;
-                    if(artifactExists) {
-                        echo "*** File: ${artifactPath}, group: ${pom.groupId}, packaging: ${pom.packaging}, version ${pom.version}";
-                        nexusArtifactUploader(
-                            nexusVersion: NEXUS_VERSION,
-                            protocol: NEXUS_PROTOCOL,
-                            nexusUrl: NEXUS_URL,
-                            groupId: pom.groupId,
-                            version: '${BUILD_NUMBER}',
-                            repository: NEXUS_REPOSITORY,
-                            credentialsId: NEXUS_CREDENTIAL_ID,
-                            artifacts: [
-                                // Artifact generated such as .jar, .ear and .war files.
-                                [artifactId: pom.artifactId,
-                                classifier: '',
-                                file: artifactPath,
-                                type: pom.packaging],
-                                // Lets upload the pom.xml file for additional information for Transitive dependencies
-                                [artifactId: pom.artifactId,
-                                classifier: '',
-                                file: "pom.xml",
-                                type: "pom"]
-                            ]
-                        );
+
+                    if(filesByGlob.length > 0) {
+                        artifactPath = filesByGlob[0].path;
+                        artifactExists = fileExists artifactPath;
+
+                        if(artifactExists) {
+                            echo "*** Artifact Found: ${artifactPath}, Group: ${pom.groupId}, Packaging: ${pom.packaging}, Version: ${pom.version}";
+
+                            nexusArtifactUploader(
+                                nexusVersion: NEXUS_VERSION,
+                                protocol: NEXUS_PROTOCOL,
+                                nexusUrl: NEXUS_URL,
+                                groupId: pom.groupId,
+                                version: "${pom.version}-${BUILD_NUMBER}", // Using original version + Jenkins BUILD_NUMBER for uniqueness
+                                repository: NEXUS_REPOSITORY,
+                                credentialsId: NEXUS_CREDENTIAL_ID,
+                                artifacts: [
+                                    [artifactId: pom.artifactId,
+                                     classifier: '',
+                                     file: artifactPath,
+                                     type: pom.packaging],
+                                    [artifactId: pom.artifactId,
+                                     classifier: '',
+                                     file: "pom.xml",
+                                     type: "pom"]
+                                ]
+                            );
+                            echo "Artifact published successfully to Nexus!"
+                        } else {
+                            error "*** Error: Built artifact file '${artifactPath}' could not be found."
+                        }
                     } else {
-                        error "*** File: ${artifactPath}, could not be found";
+                        error "*** Error: No artifact found in 'target/' directory with packaging type '${pom.packaging}'."
                     }
-					} else {
-                                echo "no build"
+                }
+            }
+        }
+
+        stage("Deploy to Tomcat") {
+            when {
+                expression { params.deploy_to_tomcat == true }
+            }
+            steps {
+                script {
+                    echo "Attempting to deploy artifact to Tomcat at ${TOMCAT_URL}${TOMCAT_MANAGER_PATH}..."
+                    pom = readMavenPom file: "pom.xml";
+                    filesByGlob = findFiles(glob: "target/*.${pom.packaging}");
+
+                    if(filesByGlob.length > 0) {
+                        artifactPath = filesByGlob[0].path;
+                        artifactExists = fileExists artifactPath;
+
+                        if(artifactExists) {
+                            // Get Tomcat manager credentials
+                            withCredentials([usernamePassword(credentialsId: TOMCAT_MANAGER_CREDENTIAL_ID, passwordVariable: 'TOMCAT_PASSWORD', usernameVariable: 'TOMCAT_USERNAME')]) {
+                                // Use curl to deploy the WAR file to Tomcat Manager
+                                sh "curl -u ${TOMCAT_USERNAME}:${TOMCAT_PASSWORD} --upload-file ${artifactPath} \"http://${TOMCAT_URL}${TOMCAT_MANAGER_PATH}?path=${TOMCAT_CONTEXT_PATH}&update=true\""
+                                echo "Deployment command executed. Check Tomcat logs for status."
                             }
+                        } else {
+                            error "*** Error: Built artifact file '${artifactPath}' could not be found for Tomcat deployment."
+                        }
+                    } else {
+                        error "*** Error: No artifact found in 'target/' directory for Tomcat deployment."
+                    }
                 }
             }
         }
