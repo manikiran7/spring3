@@ -5,6 +5,7 @@ pipeline {
 
     parameters {
         // This parameter allows you to select a Git branch from the UI
+        // Requires the "Git Parameter Plugin" to be installed and Jenkins restarted if recently installed.
         gitParameter branchFilter: 'origin/(.*)', defaultValue: 'origin/main', name: 'BRANCH', type: 'PT_BRANCH' // Changed defaultValue to 'main' for common practice
 
         // Boolean parameters to control pipeline stages
@@ -40,12 +41,14 @@ pipeline {
     }
 
     stages {
-        stage("Clone Code") {
+        // Removed the explicit "Clone Code" stage and 'git' step here.
+        // The SCM configuration in the Jenkins job definition (Pipeline section)
+        // handles the initial cloning of the repository based on the 'BRANCH' parameter
+        // before any stages start. This avoids the "Couldn't find any revision to build" error.
+        stage("Initialize Workspace") {
             steps {
                 script {
-                    echo "Cloning branch: ${params.BRANCH} from repository: https://github.com/manikiran7/spring3.git"
-                    // The Git repository URL
-                    git branch: "${params.BRANCH}", url: 'https://github.com/manikiran7/spring3.git'; // Your specified Git repository URL
+                    echo "Workspace initialized. Code for branch '${params.BRANCH}' is already checked out by Jenkins's SCM configuration."
                 }
             }
         }
@@ -71,7 +74,7 @@ pipeline {
             steps {
                 script {
                     echo "Attempting to publish artifact to Nexus repository: ${NEXUS_REPOSITORY}..."
-                    pom = readMavenPom file: "pom.xml";
+                    pom = readMavenPom file: "pom.xml"; // This line requires Pipeline Utility Steps Plugin
                     filesByGlob = findFiles(glob: "target/*.${pom.packaging}");
 
                     if(filesByGlob.length > 0) {
