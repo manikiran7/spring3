@@ -33,13 +33,17 @@ pipeline {
         TOMCAT_MANAGER_PATH = "/manager/text/deploy" // Path for deploying WAR files
         TOMCAT_CONTEXT_PATH = "/spring3" // Context path for your application on Tomcat
         TOMCAT_MANAGER_CREDENTIAL_ID = "tomcat-manager-credentials" // Your specified Tomcat credential ID
+
+        // --- Slack Configuration ---
+        SLACK_CHANNEL = "#general" // Set your desired Slack channel (e.g., #devops, #jenkins-notifications)
+        SLACK_CREDENTIAL_ID = "slack-token" // Your specified Slack credential ID
     }
 
     stages {
         stage("Clone Code") {
             steps {
                 script {
-                    echo "Cloning branch: ${params.BRANCH} from repository: ${env.GIT_URL}"
+                    echo "Cloning branch: ${params.BRANCH} from repository: https://github.com/manikiran7/spring3.git"
                     // The Git repository URL
                     git branch: "${params.BRANCH}", url: 'https://github.com/manikiran7/spring3.git'; // Your specified Git repository URL
                 }
@@ -125,6 +129,7 @@ pipeline {
                             // Get Tomcat manager credentials
                             withCredentials([usernamePassword(credentialsId: TOMCAT_MANAGER_CREDENTIAL_ID, passwordVariable: 'TOMCAT_PASSWORD', usernameVariable: 'TOMCAT_USERNAME')]) {
                                 // Use curl to deploy the WAR file to Tomcat Manager
+                                // The '&update=true' parameter ensures the existing application is updated if it already exists
                                 sh "curl -u ${TOMCAT_USERNAME}:${TOMCAT_PASSWORD} --upload-file ${artifactPath} \"http://${TOMCAT_URL}${TOMCAT_MANAGER_PATH}?path=${TOMCAT_CONTEXT_PATH}&update=true\""
                                 echo "Deployment command executed. Check Tomcat logs for status."
                             }
@@ -136,6 +141,37 @@ pipeline {
                     }
                 }
             }
+        }
+    }
+
+    // Post-build actions for notifications
+    post {
+        always {
+            // This block runs regardless of the build status (success, failure, aborted, etc.)
+            echo "Pipeline finished. Sending Slack notification..."
+            slackSend(
+                channel: SLACK_CHANNEL,
+                color: '#CCCC00', // Yellow for "always" status
+                message: "Project: ${env.JOB_NAME}\nBuild: ${env.BUILD_NUMBER} (${env.BUILD_URL}) finished. Status: ${currentBuild.currentResult}"
+            )
+        }
+        success {
+            // This block runs only if the pipeline successfully completes
+            echo "Pipeline succeeded. Sending Slack success notification..."
+            slackSend(
+                channel: SLACK_CHANNEL,
+                color: '#00FF00', // Green for success
+                message: "Project: ${env.JOB_NAME}\nBuild: ${env.BUILD_NUMBER} (${env.BUILD_URL}) *SUCCEEDED*! :rocket:"
+            )
+        }
+        failure {
+            // This block runs only if the pipeline fails
+            echo "Pipeline failed. Sending Slack failure notification..."
+            slackSend(
+                channel: SLACK_CHANNEL,
+                color: '#FF0000', // Red for failure
+                message: "Project: ${env.JOB_NAME}\nBuild: ${env.BUILD_NUMBER} (${env.BUILD_URL}) *FAILED*! :fire:"
+            )
         }
     }
 }
