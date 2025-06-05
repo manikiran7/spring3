@@ -36,7 +36,7 @@ pipeline {
         TOMCAT_MANAGER_CREDENTIAL_ID = "tomcat-manager-credentials" // Your specified Tomcat credential ID
 
         // --- Slack Configuration ---
-        SLACK_CHANNEL = "#general" // Set your desired Slack channel (e.g., #devops, #jenkins-notifications)
+        SLACK_CHANNEL = "#team" // Set your desired Slack channel (e.g., #devops, #jenkins-notifications)
         SLACK_CREDENTIAL_ID = "slack-token" // Your specified Slack credential ID
     }
 
