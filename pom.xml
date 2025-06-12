@@ -6,7 +6,7 @@
 	<artifactId>ncodeit-hello-world</artifactId>
 	<packaging>war</packaging>
 	<version>3.0</version> <!-- Keep your base version -->
-	<name>spring3 mvc maven</name>
+	<name>spring3mvcmaven</name>
 
 	<properties>
 		<!-- UPDATED: Use Java 8 or later for compilation -->
