@@ -73,13 +73,15 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
+                dir("${WORKSPACE}") {
+                    wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
                     sh "docker rmi ${DOCKER_IMAGE}:latest || true"
                     sh "docker build -t ${DOCKER_IMAGE}:${BUILD_NUMBER} ."
                     sh "docker tag ${DOCKER_IMAGE}:${BUILD_NUMBER} ${DOCKER_IMAGE}:latest"
                 }
             }
         }
+    }  
 
         stage('Push Docker Image') {
             steps {
