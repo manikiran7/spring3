@@ -10,12 +10,21 @@ pipeline {
         NEXUS_CREDENTIALS_ID = 'nexus-new'
         DOCKERHUB_CREDS = 'dockerhub-creds'
         IMAGE_NAME = 'manikiran7/simple-customer-app'
+        SONARQUBE_ENV = 'MySonarQube'
     }
 
     stages {
         stage('Checkout') {
             steps {
                 git branch: env.BRANCH_NAME, url: 'https://github.com/betawins/hiring-app.git'
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv("${SONARQUBE_ENV}") {
+                    sh 'mvn sonar:sonar'
+                }
             }
         }
 
@@ -54,7 +63,8 @@ pipeline {
                 script {
                     sh 'docker image prune -af'
                     def imageTag = "${IMAGE_NAME}:${env.BUILD_NUMBER}"
-                    sh "docker build -t ${imageTag} ."
+                    def appImage = docker.build(imageTag)
+                    env.IMAGE_TAG = imageTag
                 }
             }
         }
@@ -62,9 +72,10 @@ pipeline {
         stage('Push Docker Image') {
             steps {
                 script {
-                    def imageTag = "${IMAGE_NAME}:${env.BUILD_NUMBER}"
+                    def imageTag = env.IMAGE_TAG
+                    def appImage = docker.image(imageTag)
                     docker.withRegistry('', DOCKERHUB_CREDS) {
-                        sh "docker push ${imageTag}"
+                        appImage.push()
                     }
                 }
             }
