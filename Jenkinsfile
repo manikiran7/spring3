@@ -16,7 +16,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git url: 'https://github.com/manikiran7/spring3.git', branch: 'main'
+                git url: 'https://github.com/manikiran7/simple.git', branch: 'main'
             }
         }
 
@@ -38,8 +38,10 @@ pipeline {
             steps {
                 script {
                     withCredentials([usernamePassword(credentialsId: NEXUS_CREDENTIALS_ID, passwordVariable: 'NEXUS_PASSWORD', usernameVariable: 'NEXUS_USERNAME')]) {
-                        def nexusSettings = """
-<settings>
+                        def nexusSettingsContent = """<?xml version="1.0" encoding="UTF-8"?>
+<settings xmlns="http://maven.apache.org/SETTINGS/1.1.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.1.0 http://maven.apache.org/xsd/settings-1.1.0.xsd">
   <servers>
     <server>
       <id>nexus</id>
@@ -47,28 +49,42 @@ pipeline {
       <password>${NEXUS_PASSWORD}</password>
     </server>
   </servers>
+  <mirrors>
+    <mirror>
+      <id>nexus-all-repos</id>
+      <name>Nexus Public Repository All</name>
+      <url>http://54.172.209.151:8081/repository/maven-public/</url>
+      <mirrorOf>*</mirrorOf>
+    </mirror>
+  </mirrors>
+  <profiles>
+    <profile>
+      <id>nexus</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <repositories>
+        <repository>
+          <id>central</id>
+          <url>http://54.172.209.151:8081/repository/maven-public/</url>
+          <releases><enabled>true</enabled></releases>
+          <snapshots><enabled>true</enabled></snapshots>
+        </repository>
+      </repositories>
+      <pluginRepositories>
+        <pluginRepository>
+          <id>central</id>
+          <url>http://54.172.209.151:8081/repository/maven-public/</url>
+          <releases><enabled>true</enabled></releases>
+          <snapshots><enabled>true</enabled></snapshots>
+        </pluginRepository>
+      </pluginRepositories>
+    </profile>
+  </profiles>
 </settings>
 """
-                        writeFile(file: 'nexus-settings.xml', text: nexusSettings)
+                        writeFile(file: 'nexus-settings.xml', text: nexusSettingsContent)
                         sh "mvn deploy -DskipTests -s nexus-settings.xml"
-                    }
-                }
-            }
-        }
-
-        stage('Docker Build & Push') {
-            steps {
-                script {
-                    withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                        def imageTag = "manikiran7/simple-customer-app:${env.BUILD_NUMBER}"
-                        sh """
-                            docker build -t ${imageTag} .
-                            echo "${DOCKER_PASS}" | docker login -u "${DOCKER_USER}" --password-stdin
-                            docker push ${imageTag}
-                            docker tag ${imageTag} manikiran7/simple-customer-app:latest
-                            docker push manikiran7/simple-customer-app:latest
-                            docker rmi ${imageTag} manikiran7/simple-customer-app:latest || true
-                        """
                     }
                 }
             }
@@ -78,8 +94,10 @@ pipeline {
             steps {
                 script {
                     withCredentials([usernamePassword(credentialsId: TOMCAT_CREDENTIALS_ID, passwordVariable: 'TOMCAT_PASSWORD', usernameVariable: 'TOMCAT_USERNAME')]) {
-                        def tomcatSettings = """
-<settings>
+                        def tomcatSettingsContent = """<?xml version="1.0" encoding="UTF-8"?>
+<settings xmlns="http://maven.apache.org/SETTINGS/1.1.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.1.0 http://maven.apache.org/xsd/settings-1.1.0.xsd">
   <servers>
     <server>
       <id>tomcat-server</id>
@@ -89,8 +107,27 @@ pipeline {
   </servers>
 </settings>
 """
-                        writeFile(file: 'tomcat-settings.xml', text: tomcatSettings)
+                        writeFile(file: 'tomcat-settings.xml', text: tomcatSettingsContent)
                         sh "mvn tomcat7:redeploy -s tomcat-settings.xml"
+                    }
+                }
+            }
+        }
+
+        stage('Docker Build & Push') {
+            steps {
+                script {
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                        sh '''
+                            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                            docker build -t manikiran7/ncodeit-hello-world:${BUILD_NUMBER} .
+                            docker tag manikiran7/ncodeit-hello-world:${BUILD_NUMBER} manikiran7/ncodeit-hello-world:latest
+                            docker push manikiran7/ncodeit-hello-world:${BUILD_NUMBER}
+                            docker push manikiran7/ncodeit-hello-world:latest
+                            docker rmi manikiran7/ncodeit-hello-world:${BUILD_NUMBER} || true
+                            docker rmi manikiran7/ncodeit-hello-world:latest || true
+                            docker logout
+                        '''
                     }
                 }
             }
@@ -100,31 +137,34 @@ pipeline {
     post {
         always {
             cleanWs()
+            echo 'Pipeline cleanup complete.'
             slackSend (
                 channel: '#team',
                 color: '#CCCC00',
-                message: "Project *${env.JOB_NAME}* - Build #${env.BUILD_NUMBER} has finished with status: *${currentBuild.currentResult}* (<${env.BUILD_URL}|Open>)"
+                message: "Project *${env.JOB_NAME}* - Build #${env.BUILD_NUMBER} has finished with status: *${currentBuild.currentResult}* (<${env.BUILD_URL}|Open in Jenkins>)"
             )
         }
         success {
+            echo 'Pipeline finished successfully!'
             slackSend (
                 channel: '#team',
                 color: 'good',
-                message: "✅ SUCCESS: *${env.JOB_NAME}* - Build #${env.BUILD_NUMBER} deployed successfully!"
+                message: "SUCCESS: Project *${env.JOB_NAME}* - Build #${env.BUILD_NUMBER} deployed successfully! (<${env.BUILD_URL}|Open in Jenkins>)"
             )
         }
         failure {
+            echo 'Pipeline failed!'
             slackSend (
                 channel: '#team',
                 color: 'danger',
-                message: "❌ FAILURE: *${env.JOB_NAME}* - Build #${env.BUILD_NUMBER} failed!"
+                message: "FAILURE: Project *${env.JOB_NAME}* - Build #${env.BUILD_NUMBER} failed! (<${env.BUILD_URL}|Open in Jenkins>)"
             )
         }
         unstable {
             slackSend (
                 channel: '#team',
                 color: 'warning',
-                message: "⚠️ UNSTABLE: *${env.JOB_NAME}* - Build #${env.BUILD_NUMBER} is unstable!"
+                message: "UNSTABLE: Project *${env.JOB_NAME}* - Build #${env.BUILD_NUMBER} is unstable! (<${env.BUILD_URL}|Open in Jenkins>)"
             )
         }
     }
