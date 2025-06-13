@@ -14,8 +14,8 @@ pipeline {
         DOCKERHUB_CREDENTIALS = 'dockerhub-creds'
         TOMCAT_URL = 'http://54.163.1.219:8080/manager/text'
         TOMCAT_CREDENTIALS = 'tomcat-creds'
-        SLACK_CHANNEL = '#team' // Replace with your Slack channel
-        SLACK_CREDENTIALS = 'slack-token' // ID from Jenkins credentials
+        SLACK_CHANNEL = '#team' 
+        SLACK_CREDENTIALS = 'slack-token' 
     }
 
     options {
