@@ -37,28 +37,31 @@ pipeline {
         }
 
         stage('Upload to Nexus') {
-            steps {
-                script {
-                    def pom = readMavenPom file: 'pom.xml'
-                    def artifactPath = "target/${pom.artifactId}-${pom.version}.war"
-                    nexusArtifactUploader(
-                        nexusVersion: 'nexus3',
-                        protocol: 'http',
-                        nexusUrl: '54.80.161.60:8081',
-                        groupId: pom.groupId,
-                        version: pom.version,
-                        repository: 'SimpleCustomerApp',
-                        credentialsId: NEXUS_CREDENTIALS_ID,
-                        artifacts: [[
-                            artifactId: pom.artifactId,
-                            classifier: '',
-                            file: artifactPath,
-                            type: pom.packaging
-                        ]]
-                    )
-                }
-            }
+    steps {
+        script {
+            def pom = readMavenPom file: 'pom.xml'
+            def artifactPath = "target/${pom.artifactId}-${pom.version}.war"
+            echo "Uploading WAR file: ${artifactPath}"
+
+            nexusArtifactUploader(
+                nexusVersion: 'nexus3',
+                protocol: 'http',
+                nexusUrl: '54.80.161.60:8081',
+                groupId: pom.groupId,
+                version: pom.version,
+                repository: 'SimpleCustomerApp',
+                credentialsId: NEXUS_CREDENTIALS_ID,
+                artifacts: [[
+                    artifactId: pom.artifactId,
+                    classifier: '',
+                    file: artifactPath,
+                    type: pom.packaging
+                ]]
+            )
         }
+    }
+}
+
 
         stage('Build Docker Image') {
             steps {
