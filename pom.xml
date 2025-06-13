@@ -38,7 +38,7 @@
                 <artifactId>tomcat9-maven-plugin</artifactId>
                 <version>2.2</version>
                 <configuration>
-                    <url>http://3.84.89.87:8080/manager/text</url>
+                    <url>http://54.163.1.219:8080/manager/html</url>
                     <path>/featureapp</path>
                     <update>true</update>
                     <server>tomcat-server</server>
