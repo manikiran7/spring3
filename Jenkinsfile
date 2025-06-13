@@ -86,28 +86,27 @@ pipeline {
         }
 
         stage('Deploy to Tomcat') {
-    steps {
-        withCredentials([usernamePassword(credentialsId: 'tomcat-manager-credentials', usernameVariable: 'TOMCAT_USER', passwordVariable: 'TOMCAT_PASS')]) {
-            script {
-                def pom = readMavenPom file: 'pom.xml'
-                def warFile = "target/${pom.artifactId}-${pom.version}.war"
-                def deployPath = "/featureapp"
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'tomcat-manager-credentials', usernameVariable: 'TOMCAT_USER', passwordVariable: 'TOMCAT_PASS')]) {
+                    script {
+                        def pom = readMavenPom file: 'pom.xml'
+                        def warFile = "target/${pom.artifactId}-${pom.version}.war"
+                        def deployPath = "/featureapp"
 
-                // Undeploy existing app and deploy new WAR
-                sh """
-                    # Undeploy old app if exists (ignore errors if not deployed)
-                    curl -s -o /dev/null -w "%{http_code}" -u \$TOMCAT_USER:\$TOMCAT_PASS \\
-                    "http://54.163.1.219:8080/manager/text/undeploy?path=${deployPath}" || true
+                        sh """
+                            # Undeploy old app if exists (ignore errors)
+                            curl -s -o /dev/null -w "%{http_code}" -u \$TOMCAT_USER:\$TOMCAT_PASS \\
+                            "http://54.163.1.219:8080/manager/text/undeploy?path=${deployPath}" || true
 
-                    # Upload new WAR and deploy
-                    curl --fail -u \$TOMCAT_USER:\$TOMCAT_PASS --upload-file ${warFile} \\
-                    "http://54.163.1.219:8080/manager/text/deploy?path=${deployPath}&update=true"
-                """
+                            # Deploy new WAR
+                            curl --fail -u \$TOMCAT_USER:\$TOMCAT_PASS --upload-file ${warFile} \\
+                            "http://54.163.1.219:8080/manager/text/deploy?path=${deployPath}&update=true"
+                        """
+                    }
+                }
             }
         }
     }
-}
-
 
     post {
         failure {
