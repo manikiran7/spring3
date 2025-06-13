@@ -58,16 +58,17 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
-            steps {
-                script {
-                    sh 'docker image prune -af'
-                    def imageTag = "${IMAGE_NAME}:${env.BUILD_NUMBER}"
-                    docker.build(imageTag)
-                    env.IMAGE_TAG = imageTag
-                }
-            }
+       stage('Build Docker Image') {
+    steps {
+        script {
+            sh 'docker image prune -af'
+            def imageTag = "${IMAGE_NAME}:${env.BUILD_NUMBER}"
+            env.IMAGE_TAG = imageTag
+            sh "docker build -t ${imageTag} ."
         }
+    }
+}
+
 
         stage('Push Docker Image') {
             steps {
