@@ -39,7 +39,7 @@
                 <version>2.2</version>
                 <configuration>
                     <url>http://3.84.89.87:8080/manager/text</url>
-                    <path>/SimpleCustomerApp</path>
+                    <path>/featureapp</path>
                     <update>true</update>
                     <server>tomcat-server</server>
                 </configuration>
