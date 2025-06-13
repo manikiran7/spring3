@@ -1,30 +1,34 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.visualpathit</groupId>
     <artifactId>SimpleCustomerApp</artifactId>
-    <packaging>war</packaging>
     <version>1.0.0</version>
+    <packaging>war</packaging>
     <name>featureapp</name>
 
     <properties>
-        <maven.compiler.source>1.8</maven.compiler.source>
-        <maven.compiler.target>1.8</maven.compiler.target>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
     <build>
         <plugins>
+            <!-- Compiler Plugin for Java 21 -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.1</version>
+                <version>3.11.0</version>
                 <configuration>
-                    <source>${maven.compiler.source}</source>
-                    <target>${maven.compiler.target}</target>
+                    <release>21</release>
                 </configuration>
             </plugin>
+
+            <!-- WAR Plugin -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-war-plugin</artifactId>
@@ -33,23 +37,26 @@
                     <failOnMissingWebXml>false</failOnMissingWebXml>
                 </configuration>
             </plugin>
+
+            <!-- Tomcat Plugin -->
             <plugin>
                 <groupId>org.apache.tomcat.maven</groupId>
                 <artifactId>tomcat9-maven-plugin</artifactId>
                 <version>2.2</version>
                 <configuration>
-                    <url>http://54.163.1.219:8080/manager/html</url>
+                    <url>http://54.163.1.219:8080/manager/text</url>
+                    <server>tomcat-server</server>
                     <path>/featureapp</path>
                     <update>true</update>
-                    <server>tomcat-server</server>
                 </configuration>
             </plugin>
         </plugins>
     </build>
 
-  <distributionManagement>
-    <repository>
-        <id>nexus</id>
-        <url>http://54.80.161.60:8081/repository/SimpleCustomerApp/</url>
-    </repository>
-</distributionManagement>
+    <distributionManagement>
+        <repository>
+            <id>nexus</id>
+            <url>http://54.80.161.60:8081/repository/SimpleCustomerApp/</url>
+        </repository>
+    </distributionManagement>
+</project>
