@@ -113,7 +113,7 @@ pipeline {
                             sh """
                             curl -T target/${pom.artifactId}-${pom.version}.war \\
                             -u $TOMCAT_USER:$TOMCAT_PASS \\
-                            "${TOMCAT_URL}/deploy?path=/spring3&update=true"
+                            "${TOMCAT_URL}/deploy?path=/maniapp&update=true"
                             """
                         }
                     }
