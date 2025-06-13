@@ -6,7 +6,7 @@
     <groupId>com.visualpathit</groupId>
     <artifactId>SimpleCustomerApp</artifactId>
     <packaging>war</packaging>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.0</version>
     <name>SimpleCustomerApp</name>
 
     <properties>
@@ -47,10 +47,9 @@
         </plugins>
     </build>
 
-    <distributionManagement>
-        <snapshotRepository>
-            <id>nexus</id>
-            <url>http://54.172.209.151:8081/repository/maven-snapshots/</url>
-        </snapshotRepository>
-    </distributionManagement>
-</project>
+  <distributionManagement>
+    <repository>
+        <id>nexus</id>
+        <url>http://54.80.161.60:8081/repository/SimpleCustomerApp/</url>
+    </repository>
+</distributionManagement>
