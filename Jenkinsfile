@@ -77,14 +77,16 @@ pipeline {
                 wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
                     script {
                         def pom = readMavenPom file: 'pom.xml'
-                        def warFile = "target/${pom.artifactId}-${pom.version}.war"
-                        if (!fileExists(warFile)) {
-                            error("WAR file not found! Ensure Maven build was successful.")
+                        def warPath = "target/${pom.artifactId}-${pom.version}.war"
+                        
+                        if (!fileExists(warPath)) {
+                            error("WAR file not found: ${warPath}")
                         }
 
+                        // Clean up old containers and images
                         sh """
-                            docker ps -a --filter "ancestor=${DOCKER_IMAGE}" --format "{{.ID}}" | xargs -r docker stop
-                            docker ps -a --filter "ancestor=${DOCKER_IMAGE}" --format "{{.ID}}" | xargs -r docker rm
+                            docker ps -a --filter "ancestor=${DOCKER_IMAGE}" --format "{{.ID}}" | xargs -r docker stop || true
+                            docker ps -a --filter "ancestor=${DOCKER_IMAGE}" --format "{{.ID}}" | xargs -r docker rm || true
                             docker images ${DOCKER_IMAGE} --format "{{.Repository}}:{{.Tag}}" | grep -v ":${BUILD_NUMBER}" | xargs -r docker rmi || true
                         """
 
