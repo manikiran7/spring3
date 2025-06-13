@@ -63,32 +63,27 @@ pipeline {
                 script {
                     sh 'docker image prune -af'
                     def imageTag = "${IMAGE_NAME}:${env.BUILD_NUMBER}"
-                    def appImage = docker.build(imageTag)
+                    docker.build(imageTag)
                     env.IMAGE_TAG = imageTag
                 }
             }
         }
 
         stage('Push Docker Image') {
-    steps {
-        wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
-            withCredentials([usernamePassword(credentialsId: DOCKERHUB_CREDENTIALS, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                sh """
-                echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                docker build -t ${DOCKER_IMAGE}:${BUILD_NUMBER} .
-                docker tag ${DOCKER_IMAGE}:${BUILD_NUMBER} ${DOCKER_IMAGE}:latest
-                docker push ${DOCKER_IMAGE}:${BUILD_NUMBER}
-                docker push ${DOCKER_IMAGE}:latest
-                docker logout
-                """
+            steps {
+                wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
+                    withCredentials([usernamePassword(credentialsId: DOCKERHUB_CREDS, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                        sh """
+                            echo "\$DOCKER_PASS" | docker login -u "\$DOCKER_USER" --password-stdin
+                            docker tag \${IMAGE_TAG} \${IMAGE_NAME}:latest
+                            docker push \${IMAGE_TAG}
+                            docker push \${IMAGE_NAME}:latest
+                            docker logout
+                        """
+                    }
+                }
             }
         }
-    }
-}
-
-
-
-
 
         stage('Deploy to Tomcat') {
             steps {
@@ -109,7 +104,7 @@ pipeline {
         failure {
             slackSend(
                 color: 'danger',
-                message: "Build failed for branch ${env.BRANCH_NAME} in job ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                message: "❌ Build failed for branch ${env.BRANCH_NAME} in job ${env.JOB_NAME} #${env.BUILD_NUMBER}",
                 channel: '#team',
                 tokenCredentialId: 'slack-token'
             )
