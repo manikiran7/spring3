@@ -7,7 +7,7 @@ pipeline {
     }
 
     environment {
-        NEXUS_CREDENTIALS_ID = 'NEXUS_CREDENTIALS_ID'
+        NEXUS_CREDENTIALS_ID = 'nexus-new'
         DOCKERHUB_CREDS = 'dockerhub-creds'
         IMAGE_NAME = 'manikiran7/simple-customer-app'
     }
