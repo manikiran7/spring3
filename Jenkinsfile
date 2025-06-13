@@ -75,32 +75,33 @@ pipeline {
             steps {
                 dir("${WORKSPACE}") {
                     wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
-                    sh "docker rmi ${DOCKER_IMAGE}:latest || true"
-                    sh "docker build -t ${DOCKER_IMAGE}:${BUILD_NUMBER} ."
-                    sh "docker tag ${DOCKER_IMAGE}:${BUILD_NUMBER} ${DOCKER_IMAGE}:latest"
-                }
-            }
-        }
-    }  
-
-       stage('Build Docker Image') {
-    steps {
-        dir("${WORKSPACE}") {
-            wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
-                script {
-                    // Ensure WAR exists before build
-                    if (!fileExists("target/ncodeit-hello-world-3.0.war")) {
-                        error("WAR file not found! Make sure Maven build stage runs successfully.")
+                        script {
+                            if (!fileExists("target/ncodeit-hello-world-3.0.war")) {
+                                error("WAR file not found! Ensure Maven build was successful.")
+                            }
+                        }
+                        sh "docker rmi ${DOCKER_IMAGE}:latest || true"
+                        sh "docker build -t ${DOCKER_IMAGE}:${BUILD_NUMBER} ."
+                        sh "docker tag ${DOCKER_IMAGE}:${BUILD_NUMBER} ${DOCKER_IMAGE}:latest"
                     }
                 }
-                sh "docker rmi ${DOCKER_IMAGE}:latest || true"
-                sh "docker build -t ${DOCKER_IMAGE}:${BUILD_NUMBER} ."
-                sh "docker tag ${DOCKER_IMAGE}:${BUILD_NUMBER} ${DOCKER_IMAGE}:latest"
             }
         }
-    }
-}
 
+        stage('Push Docker Image') {
+            steps {
+                wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
+                    withCredentials([usernamePassword(credentialsId: DOCKERHUB_CREDENTIALS, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                        sh """
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                        docker push ${DOCKER_IMAGE}:${BUILD_NUMBER}
+                        docker push ${DOCKER_IMAGE}:latest
+                        docker logout
+                        """
+                    }
+                }
+            }
+        }
 
         stage('Deploy to Tomcat') {
             steps {
