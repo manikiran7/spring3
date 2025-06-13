@@ -70,16 +70,18 @@ pipeline {
         }
 
         stage('Push Docker Image') {
-            steps {
+           steps {
                 script {
-                    def imageTag = env.IMAGE_TAG
-                    def appImage = docker.image(imageTag)
-                    docker.withRegistry('', DOCKERHUB_CREDS) {
-                        appImage.push()
-                    }
-                }
+                  def imageTag = "${IMAGE_NAME}:${env.BUILD_NUMBER}"
+                   withCredentials([usernamePassword(credentialsId: DOCKERHUB_CREDS, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                   sh "echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin"
+                   sh "docker push ${imageTag}"
+                  sh "docker logout"
             }
         }
+    }
+}
+
 
         stage('Deploy to Tomcat') {
             steps {
