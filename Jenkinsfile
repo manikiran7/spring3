@@ -10,8 +10,8 @@ pipeline {
         SONARQUBE_ENV = 'MySonarQube'
         NEXUS_CREDENTIAL_ID = 'nexus-new'
         NEXUS_URL = '54.80.161.60:8081'
-        NEXUS_REPOSITORY = 'ncodeit-hello-world'
-        DOCKER_IMAGE = 'manikiran7/ncodeit-hello-world'
+        NEXUS_REPOSITORY = 'SimpleCustomerApp'
+        DOCKER_IMAGE = 'manikiran7/simple-customer-app'
         DOCKERHUB_CREDENTIALS = 'dockerhub-creds'
         TOMCAT_URL = 'http://54.163.1.219:8080/manager/text'
         TOMCAT_CREDENTIALS = 'tomcat-manager-credentials'
@@ -74,24 +74,20 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                dir("${WORKSPACE}") {
-                    wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
-                        script {
-                            if (!fileExists("target/ncodeit-hello-world-3.0.war")) {
-                                error("WAR file not found! Ensure Maven build was successful.")
-                            }
+                wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
+                    script {
+                        def pom = readMavenPom file: 'pom.xml'
+                        def warFile = "target/${pom.artifactId}-${pom.version}.war"
+                        if (!fileExists(warFile)) {
+                            error("WAR file not found! Ensure Maven build was successful.")
+                        }
 
-                            // Cleanup old containers using this image
-                            sh '''
+                        sh """
                             docker ps -a --filter "ancestor=${DOCKER_IMAGE}" --format "{{.ID}}" | xargs -r docker stop
                             docker ps -a --filter "ancestor=${DOCKER_IMAGE}" --format "{{.ID}}" | xargs -r docker rm
-                            '''
-
-                            // Delete all old tags except current build
-                            sh '''
                             docker images ${DOCKER_IMAGE} --format "{{.Repository}}:{{.Tag}}" | grep -v ":${BUILD_NUMBER}" | xargs -r docker rmi || true
-                            '''
-                        }
+                        """
+
                         sh "docker build -t ${DOCKER_IMAGE}:${BUILD_NUMBER} ."
                         sh "docker tag ${DOCKER_IMAGE}:${BUILD_NUMBER} ${DOCKER_IMAGE}:latest"
                     }
@@ -104,10 +100,10 @@ pipeline {
                 wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
                     withCredentials([usernamePassword(credentialsId: DOCKERHUB_CREDENTIALS, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                         sh """
-                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                        docker push ${DOCKER_IMAGE}:${BUILD_NUMBER}
-                        docker push ${DOCKER_IMAGE}:latest
-                        docker logout
+                            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                            docker push ${DOCKER_IMAGE}:${BUILD_NUMBER}
+                            docker push ${DOCKER_IMAGE}:latest
+                            docker logout
                         """
                     }
                 }
@@ -119,11 +115,12 @@ pipeline {
                 wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
                     script {
                         def pom = readMavenPom file: 'pom.xml'
+                        def warFile = "target/${pom.artifactId}-${pom.version}.war"
                         withCredentials([usernamePassword(credentialsId: TOMCAT_CREDENTIALS, usernameVariable: 'TOMCAT_USER', passwordVariable: 'TOMCAT_PASS')]) {
                             sh """
-                            curl -T target/${pom.artifactId}-${pom.version}.war \\
-                            -u $TOMCAT_USER:$TOMCAT_PASS \\
-                            "${TOMCAT_URL}/deploy?path=/maniapp&update=true"
+                                curl -T ${warFile} \\
+                                -u $TOMCAT_USER:$TOMCAT_PASS \\
+                                "${TOMCAT_URL}/deploy?path=/featureapp&update=true"
                             """
                         }
                     }
