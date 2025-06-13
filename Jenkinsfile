@@ -87,19 +87,25 @@ pipeline {
         }
 
         stage('Deploy to Tomcat') {
-            steps {
-                script {
-                    def pom = readMavenPom file: 'pom.xml'
-                    def warFile = "target/${pom.artifactId}-${pom.version}.war"
-                    def deployPath = "/featureapp"
-                    sh """
-                        curl -u tomcat:tomcatpass --upload-file ${warFile} \\
-                        http://54.163.1.219:8080/manager/text/deploy?path=${deployPath}&update=true
-                    """
-                }
-            }
+    steps {
+        script {
+            def pom = readMavenPom file: 'pom.xml'
+            def warFile = "target/${pom.artifactId}-${pom.version}.war"
+            def deployPath = "/featureapp"
+
+            // Undeploy existing app and deploy new WAR
+            sh """
+                # Undeploy old app if exists (ignore errors if not deployed)
+                curl -s -o /dev/null -w "%{http_code}" -u tomcat:tomcatpass \\
+                "http://54.163.1.219:8080/manager/text/undeploy?path=${deployPath}" || true
+
+                # Upload new WAR and deploy
+                curl --fail -u tomcat:tomcatpass --upload-file ${warFile} \\
+                "http://54.163.1.219:8080/manager/text/deploy?path=${deployPath}&update=true"
+            """
         }
     }
+}
 
     post {
         failure {
