@@ -11,6 +11,8 @@ pipeline {
         NEXUS_CREDENTIALS_ID = 'nexus-deploy-credentials'
         TOMCAT_CREDENTIALS_ID = 'tomcat-manager-credentials'
         SLACK_CREDENTIALS_ID = 'slack-token'
+        DOCKER_IMAGE = 'manikiran7/simple-customer-app'
+        DOCKERHUB_CREDENTIALS = 'dockerhub-creds'
     }
 
     stages {
@@ -20,91 +22,99 @@ pipeline {
             }
         }
 
-        stage('Build') {
+        stage('Code Quality - SonarQube') {
+            steps {
+                withSonarQubeEnv("${SONARQUBE_ENV}") {
+                    sh "mvn clean verify sonar:sonar"
+                }
+            }
+        }
+
+        stage('Build WAR') {
             steps {
                 sh 'mvn clean package -DskipTests'
             }
         }
 
-        stage('SonarQube Analysis') {
+        stage('Upload to Nexus') {
             steps {
-                withSonarQubeEnv("${SONARQUBE_ENV}") {
-                    sh 'mvn sonar:sonar -Dsonar.projectKey=SimpleCustomerApp'
+                script {
+                    def pom = readMavenPom file: 'pom.xml'
+                    def artifactPath = "target/${pom.artifactId}-${pom.version}.war"
+                    nexusArtifactUploader(
+                        nexusVersion: 'nexus3',
+                        protocol: 'http',
+                        nexusUrl: '54.80.161.60:8081',
+                        groupId: pom.groupId,
+                        version: pom.version,
+                        repository: 'SimpleCustomerApp',
+                        credentialsId: NEXUS_CREDENTIALS_ID,
+                        artifacts: [[
+                            artifactId: pom.artifactId,
+                            classifier: '',
+                            file: artifactPath,
+                            type: pom.packaging
+                        ]]
+                    )
                 }
             }
         }
 
-        stage('Upload to Nexus') {
+        stage('Build Docker Image') {
             steps {
-                withCredentials([usernamePassword(credentialsId: NEXUS_CREDENTIALS_ID, passwordVariable: 'NEXUS_PASSWORD', usernameVariable: 'NEXUS_USERNAME')]) {
-                    sh """
-                        mvn deploy -DskipTests \
-                          -Dnexus.username=$NEXUS_USERNAME \
-                          -Dnexus.password=$NEXUS_PASSWORD
-                    """
+                script {
+                    def imageTag = "${DOCKER_IMAGE}:${BUILD_NUMBER}"
+                    def imageLatest = "${DOCKER_IMAGE}:latest"
+                    sh "docker rmi ${imageTag} || true"
+                    sh "docker rmi ${imageLatest} || true"
+                    sh "docker build -t ${imageTag} ."
+                    sh "docker tag ${imageTag} ${imageLatest}"
+                }
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: DOCKERHUB_CREDENTIALS, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh '''
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                        docker push manikiran7/simple-customer-app:${BUILD_NUMBER}
+                        docker push manikiran7/simple-customer-app:latest
+                        docker logout
+                    '''
                 }
             }
         }
 
         stage('Deploy to Tomcat') {
             steps {
-                withCredentials([usernamePassword(credentialsId: TOMCAT_CREDENTIALS_ID, usernameVariable: 'TOMCAT_USERNAME', passwordVariable: 'TOMCAT_PASSWORD')]) {
-                    sh """
-                        mvn tomcat7:redeploy \
-                          -Dtomcat.username=$TOMCAT_USERNAME \
-                          -Dtomcat.password=$TOMCAT_PASSWORD
-                    """
-                }
-            }
-        }
-
-        stage('Docker Build & Push') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    sh """
-                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                        docker build -t manikiran7/ncodeit-hello-world:${BUILD_NUMBER} .
-                        docker tag manikiran7/ncodeit-hello-world:${BUILD_NUMBER} manikiran7/ncodeit-hello-world:latest
-                        docker push manikiran7/ncodeit-hello-world:${BUILD_NUMBER}
-                        docker push manikiran7/ncodeit-hello-world:latest
-                        docker rmi manikiran7/ncodeit-hello-world:${BUILD_NUMBER} || true
-                        docker rmi manikiran7/ncodeit-hello-world:latest || true
-                        docker logout
-                    """
+                script {
+                    def pom = readMavenPom file: 'pom.xml'
+                    withCredentials([usernamePassword(credentialsId: TOMCAT_CREDENTIALS_ID, usernameVariable: 'TOMCAT_USER', passwordVariable: 'TOMCAT_PASS')]) {
+                        sh """
+                        curl -T target/${pom.artifactId}-${pom.version}.war \\
+                        -u $TOMCAT_USER:$TOMCAT_PASS \\
+                        "http://3.84.89.87:8080/manager/text/deploy?path=/featureapp&update=true"
+                        """
+                    }
                 }
             }
         }
     }
 
     post {
-        always {
-            cleanWs()
-            echo 'Pipeline cleanup complete.'
-            slackSend (
-                channel: '#team',
-                color: '#CCCC00',
-                message: "Project *${env.JOB_NAME}* - Build #${env.BUILD_NUMBER} finished with *${currentBuild.currentResult}* (<${env.BUILD_URL}|Open>)"
-            )
-        }
         success {
-            slackSend (
-                channel: '#team',
-                color: 'good',
-                message: "✅ SUCCESS: *${env.JOB_NAME}* - Build #${env.BUILD_NUMBER} deployed! (<${env.BUILD_URL}|Open>)"
+            slackSend(
+                channel: "#team",
+                color: "good",
+                message: "✅ Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' succeeded: ${env.BUILD_URL}"
             )
         }
         failure {
-            slackSend (
-                channel: '#team',
-                color: 'danger',
-                message: "❌ FAILURE: *${env.JOB_NAME}* - Build #${env.BUILD_NUMBER} failed. (<${env.BUILD_URL}|Open>)"
-            )
-        }
-        unstable {
-            slackSend (
-                channel: '#team',
-                color: 'warning',
-                message: "⚠️ UNSTABLE: *${env.JOB_NAME}* - Build #${env.BUILD_NUMBER} unstable. (<${env.BUILD_URL}|Open>)"
+            slackSend(
+                channel: "#team",
+                color: "danger",
+                message: "❌ Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' failed: ${env.BUILD_URL}"
             )
         }
     }
