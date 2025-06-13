@@ -18,69 +18,77 @@ pipeline {
         SLACK_CREDENTIALS = 'slack-token'
     }
 
-    options {
-        ansiColor('xterm') // ✅ This is valid
-    }
-
     stages {
         stage('Checkout') {
             steps {
-                git branch: "${env.BRANCH_NAME}", url: 'https://github.com/manikiran7/spring3.git'
+                wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
+                    git branch: "${env.BRANCH_NAME}", url: 'https://github.com/manikiran7/spring3.git'
+                }
             }
         }
 
         stage('Code Quality - SonarQube') {
             steps {
-                withSonarQubeEnv("${SONARQUBE_ENV}") {
-                    sh "mvn clean verify sonar:sonar"
+                wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
+                    withSonarQubeEnv("${SONARQUBE_ENV}") {
+                        sh "mvn clean verify sonar:sonar"
+                    }
                 }
             }
         }
 
         stage('Maven Build') {
             steps {
-                sh "mvn clean package -DskipTests"
+                wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
+                    sh "mvn clean package -DskipTests"
+                }
             }
         }
 
         stage('Upload to Nexus') {
             steps {
-                script {
-                    def pom = readMavenPom file: 'pom.xml'
-                    def artifactPath = "target/${pom.artifactId}-${pom.version}.war"
-                    nexusArtifactUploader(
-                        nexusVersion: 'nexus3',
-                        protocol: 'http',
-                        nexusUrl: NEXUS_URL,
-                        groupId: pom.groupId,
-                        version: BUILD_NUMBER,
-                        repository: NEXUS_REPOSITORY,
-                        credentialsId: NEXUS_CREDENTIAL_ID,
-                        artifacts: [[
-                            artifactId: pom.artifactId,
-                            classifier: '',
-                            file: artifactPath,
-                            type: pom.packaging
-                        ]]
-                    )
+                wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
+                    script {
+                        def pom = readMavenPom file: 'pom.xml'
+                        def artifactPath = "target/${pom.artifactId}-${pom.version}.war"
+                        nexusArtifactUploader(
+                            nexusVersion: 'nexus3',
+                            protocol: 'http',
+                            nexusUrl: NEXUS_URL,
+                            groupId: pom.groupId,
+                            version: BUILD_NUMBER,
+                            repository: NEXUS_REPOSITORY,
+                            credentialsId: NEXUS_CREDENTIAL_ID,
+                            artifacts: [[
+                                artifactId: pom.artifactId,
+                                classifier: '',
+                                file: artifactPath,
+                                type: pom.packaging
+                            ]]
+                        )
+                    }
                 }
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh "docker rmi ${DOCKER_IMAGE}:latest || true"
-                sh "docker build -t ${DOCKER_IMAGE}:${BUILD_NUMBER} ."
-                sh "docker tag ${DOCKER_IMAGE}:${BUILD_NUMBER} ${DOCKER_IMAGE}:latest"
+                wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
+                    sh "docker rmi ${DOCKER_IMAGE}:latest || true"
+                    sh "docker build -t ${DOCKER_IMAGE}:${BUILD_NUMBER} ."
+                    sh "docker tag ${DOCKER_IMAGE}:${BUILD_NUMBER} ${DOCKER_IMAGE}:latest"
+                }
             }
         }
 
         stage('Push Docker Image') {
             steps {
-                script {
-                    docker.withRegistry('', DOCKERHUB_CREDENTIALS) {
-                        sh "docker push ${DOCKER_IMAGE}:${BUILD_NUMBER}"
-                        sh "docker push ${DOCKER_IMAGE}:latest"
+                wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
+                    script {
+                        docker.withRegistry('', DOCKERHUB_CREDENTIALS) {
+                            sh "docker push ${DOCKER_IMAGE}:${BUILD_NUMBER}"
+                            sh "docker push ${DOCKER_IMAGE}:latest"
+                        }
                     }
                 }
             }
@@ -88,14 +96,16 @@ pipeline {
 
         stage('Deploy to Tomcat') {
             steps {
-                script {
-                    def pom = readMavenPom file: 'pom.xml'
-                    withCredentials([usernamePassword(credentialsId: TOMCAT_CREDENTIALS, usernameVariable: 'TOMCAT_USER', passwordVariable: 'TOMCAT_PASS')]) {
-                        sh """
-                        curl -T target/${pom.artifactId}-${pom.version}.war \\
-                        -u $TOMCAT_USER:$TOMCAT_PASS \\
-                        "${TOMCAT_URL}/deploy?path=/spring3&update=true"
-                        """
+                wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
+                    script {
+                        def pom = readMavenPom file: 'pom.xml'
+                        withCredentials([usernamePassword(credentialsId: TOMCAT_CREDENTIALS, usernameVariable: 'TOMCAT_USER', passwordVariable: 'TOMCAT_PASS')]) {
+                            sh """
+                            curl -T target/${pom.artifactId}-${pom.version}.war \\
+                            -u $TOMCAT_USER:$TOMCAT_PASS \\
+                            "${TOMCAT_URL}/deploy?path=/spring3&update=true"
+                            """
+                        }
                     }
                 }
             }
