@@ -70,17 +70,20 @@ pipeline {
         }
 
         stage('Push Docker Image') {
-           steps {
-                script {
-                  def imageTag = "${IMAGE_NAME}:${env.BUILD_NUMBER}"
-                   withCredentials([usernamePassword(credentialsId: DOCKERHUB_CREDS, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                   sh "echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin"
-                   sh "docker push ${imageTag}"
-                  sh "docker logout"
+    steps {
+        withCredentials([usernamePassword(credentialsId: "${DOCKERHUB_CREDS}", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+            script {
+                def imageTag = "${IMAGE_NAME}:${env.BUILD_NUMBER}"
+                sh """
+                    echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                    docker push ${imageTag}
+                    docker logout
+                """
             }
         }
     }
 }
+
 
 
         stage('Deploy to Tomcat') {
