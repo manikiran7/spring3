@@ -14,7 +14,7 @@ pipeline {
         DOCKER_IMAGE = 'manikiran7/ncodeit-hello-world'
         DOCKERHUB_CREDENTIALS = 'dockerhub-creds'
         TOMCAT_URL = 'http://54.163.1.219:8080/manager/text'
-        TOMCAT_CREDENTIALS = 'tomcat-creds'
+        TOMCAT_CREDENTIALS = 'tomcat-manager-credentials'
         SLACK_CHANNEL = '#team'
         SLACK_CREDENTIALS = 'slack-token'
     }
