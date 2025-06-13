@@ -1,5 +1,4 @@
-pipeline {
-    agent any
+ agent any
 
     tools {
         maven "Maven3"
@@ -10,8 +9,8 @@ pipeline {
         SONARQUBE_ENV = 'MySonarQube'
         NEXUS_CREDENTIAL_ID = 'nexus-new'
         NEXUS_URL = '54.80.161.60:8081'
-        NEXUS_REPOSITORY = 'SimpleCustomerApp'
-        DOCKER_IMAGE = 'manikiran7/simple-customer-app'
+        NEXUS_REPOSITORY = 'ncodeit-hello-world'
+        DOCKER_IMAGE = 'manikiran7/ncodeit-hello-world'
         DOCKERHUB_CREDENTIALS = 'dockerhub-creds'
         TOMCAT_URL = 'http://54.163.1.219:8080/manager/text'
         TOMCAT_CREDENTIALS = 'tomcat-manager-credentials'
@@ -22,7 +21,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                wrap([$class: 'AnsiColorBuildWrapper', colorMapName: 'xterm']) {
+                wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
                     git branch: "${env.BRANCH_NAME}", url: 'https://github.com/manikiran7/spring3.git'
                 }
             }
@@ -30,9 +29,9 @@ pipeline {
 
         stage('Code Quality - SonarQube') {
             steps {
-                wrap([$class: 'AnsiColorBuildWrapper', colorMapName: 'xterm']) {
-                    withSonarQubeEnv("${env.SONARQUBE_ENV}") {
-                        sh 'mvn clean verify sonar:sonar'
+                wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
+                    withSonarQubeEnv("${SONARQUBE_ENV}") {
+                        sh "mvn clean verify sonar:sonar"
                     }
                 }
             }
@@ -40,26 +39,26 @@ pipeline {
 
         stage('Maven Build') {
             steps {
-                wrap([$class: 'AnsiColorBuildWrapper', colorMapName: 'xterm']) {
-                    sh 'mvn clean package -DskipTests'
+                wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
+                    sh "mvn clean package -DskipTests"
                 }
             }
         }
 
         stage('Upload to Nexus') {
             steps {
-                wrap([$class: 'AnsiColorBuildWrapper', colorMapName: 'xterm']) {
+                wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
                     script {
                         def pom = readMavenPom file: 'pom.xml'
                         def artifactPath = "target/${pom.artifactId}-${pom.version}.war"
                         nexusArtifactUploader(
                             nexusVersion: 'nexus3',
                             protocol: 'http',
-                            nexusUrl: "${env.NEXUS_URL}",
+                            nexusUrl: NEXUS_URL,
                             groupId: pom.groupId,
-                            version: "${env.BUILD_NUMBER}",
-                            repository: "${env.NEXUS_REPOSITORY}",
-                            credentialsId: "${env.NEXUS_CREDENTIAL_ID}",
+                            version: BUILD_NUMBER,
+                            repository: NEXUS_REPOSITORY,
+                            credentialsId: NEXUS_CREDENTIAL_ID,
                             artifacts: [[
                                 artifactId: pom.artifactId,
                                 classifier: '',
@@ -74,22 +73,26 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                wrap([$class: 'AnsiColorBuildWrapper', colorMapName: 'xterm']) {
-                    script {
-                        def pom = readMavenPom file: 'pom.xml'
-                        def warPath = "target/${pom.artifactId}-${pom.version}.war"
+                dir("${WORKSPACE}") {
+                    wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
+                        script {
+                            if (!fileExists("target/ncodeit-hello-world-3.0.war")) {
+                                error("WAR file not found! Ensure Maven build was successful.")
+                            }
 
-                        if (!fileExists(warPath)) {
-                            error "WAR file not found: ${warPath}"
+                            // Cleanup old containers using this image
+                            sh '''
+                            docker ps -a --filter "ancestor=${DOCKER_IMAGE}" --format "{{.ID}}" | xargs -r docker stop
+                            docker ps -a --filter "ancestor=${DOCKER_IMAGE}" --format "{{.ID}}" | xargs -r docker rm
+                            '''
+
+                            // Delete all old tags except current build
+                            sh '''
+                            docker images ${DOCKER_IMAGE} --format "{{.Repository}}:{{.Tag}}" | grep -v ":${BUILD_NUMBER}" | xargs -r docker rmi || true
+                            '''
                         }
-
-                        sh """
-                            docker ps -a --filter "ancestor=${env.DOCKER_IMAGE}" --format "{{.ID}}" | xargs -r docker stop || true
-                            docker ps -a --filter "ancestor=${env.DOCKER_IMAGE}" --format "{{.ID}}" | xargs -r docker rm || true
-                            docker images ${env.DOCKER_IMAGE} --format "{{.Repository}}:{{.Tag}}" | grep -v ":${BUILD_NUMBER}" | xargs -r docker rmi || true
-                            docker build -t ${env.DOCKER_IMAGE}:${BUILD_NUMBER} .
-                            docker tag ${env.DOCKER_IMAGE}:${BUILD_NUMBER} ${env.DOCKER_IMAGE}:latest
-                        """
+                        sh "docker build -t ${DOCKER_IMAGE}:${BUILD_NUMBER} ."
+                        sh "docker tag ${DOCKER_IMAGE}:${BUILD_NUMBER} ${DOCKER_IMAGE}:latest"
                     }
                 }
             }
@@ -97,13 +100,13 @@ pipeline {
 
         stage('Push Docker Image') {
             steps {
-                wrap([$class: 'AnsiColorBuildWrapper', colorMapName: 'xterm']) {
-                    withCredentials([usernamePassword(credentialsId: "${env.DOCKERHUB_CREDENTIALS}", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
+                    withCredentials([usernamePassword(credentialsId: DOCKERHUB_CREDENTIALS, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                         sh """
-                            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                            docker push ${env.DOCKER_IMAGE}:${BUILD_NUMBER}
-                            docker push ${env.DOCKER_IMAGE}:latest
-                            docker logout
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                        docker push ${DOCKER_IMAGE}:${BUILD_NUMBER}
+                        docker push ${DOCKER_IMAGE}:latest
+                        docker logout
                         """
                     }
                 }
@@ -112,20 +115,14 @@ pipeline {
 
         stage('Deploy to Tomcat') {
             steps {
-                wrap([$class: 'AnsiColorBuildWrapper', colorMapName: 'xterm']) {
+                wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
                     script {
                         def pom = readMavenPom file: 'pom.xml'
-                        def warFile = "target/${pom.artifactId}-${pom.version}.war"
-
-                        if (!fileExists(warFile)) {
-                            error "WAR file not found: ${warFile}"
-                        }
-
-                        withCredentials([usernamePassword(credentialsId: "${env.TOMCAT_CREDENTIALS}", usernameVariable: 'TOMCAT_USER', passwordVariable: 'TOMCAT_PASS')]) {
+                        withCredentials([usernamePassword(credentialsId: TOMCAT_CREDENTIALS, usernameVariable: 'TOMCAT_USER', passwordVariable: 'TOMCAT_PASS')]) {
                             sh """
-                                curl -T "${warFile}" \\
-                                -u $TOMCAT_USER:$TOMCAT_PASS \\
-                                "${env.TOMCAT_URL}/deploy?path=/featureapp&update=true"
+                            curl -T target/${pom.artifactId}-${pom.version}.war \\
+                            -u $TOMCAT_USER:$TOMCAT_PASS \\
+                            "${TOMCAT_URL}/deploy?path=/maniapp&update=true"
                             """
                         }
                     }
@@ -137,19 +134,16 @@ pipeline {
     post {
         success {
             slackSend(
-                channel: "${env.SLACK_CHANNEL}",
+                channel: "${SLACK_CHANNEL}",
                 color: "good",
-                message: "✅ Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' succeeded: ${env.BUILD_URL}",
-                tokenCredentialId: "${env.SLACK_CREDENTIALS}"
+                message: "✅ Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' succeeded: ${env.BUILD_URL}"
             )
         }
-
         failure {
             slackSend(
-                channel: "${env.SLACK_CHANNEL}",
+                channel: "${SLACK_CHANNEL}",
                 color: "danger",
-                message: "❌ Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' failed: ${env.BUILD_URL}",
-                tokenCredentialId: "${env.SLACK_CREDENTIALS}"
+                message: "❌ Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' failed: ${env.BUILD_URL}"
             )
         }
     }
