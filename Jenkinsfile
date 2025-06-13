@@ -71,32 +71,38 @@
             }
         }
 
-        stage('Build Docker Image') {
-            steps {
-                dir("${WORKSPACE}") {
-                    wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
-                        script {
-                            if (!fileExists("target/ncodeit-hello-world-3.0.war")) {
-                                error("WAR file not found! Ensure Maven build was successful.")
-                            }
+       stage('Build Docker Image') {
+    steps {
+        dir(env.WORKSPACE) {
+            wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
+                script {
+                    def pom = readMavenPom file: 'pom.xml'
+                    def warFile = "target/${pom.artifactId}-${pom.version}.war"
 
-                            // Cleanup old containers using this image
-                            sh '''
-                            docker ps -a --filter "ancestor=${DOCKER_IMAGE}" --format "{{.ID}}" | xargs -r docker stop
-                            docker ps -a --filter "ancestor=${DOCKER_IMAGE}" --format "{{.ID}}" | xargs -r docker rm
-                            '''
-
-                            // Delete all old tags except current build
-                            sh '''
-                            docker images ${DOCKER_IMAGE} --format "{{.Repository}}:{{.Tag}}" | grep -v ":${BUILD_NUMBER}" | xargs -r docker rmi || true
-                            '''
-                        }
-                        sh "docker build -t ${DOCKER_IMAGE}:${BUILD_NUMBER} ."
-                        sh "docker tag ${DOCKER_IMAGE}:${BUILD_NUMBER} ${DOCKER_IMAGE}:latest"
+                    if (!fileExists(warFile)) {
+                        error("WAR file not found: ${warFile}. Ensure Maven build was successful.")
                     }
+
+                    // Cleanup old containers using this image
+                    sh """
+                    docker ps -a --filter "ancestor=${DOCKER_IMAGE}" --format "{{.ID}}" | xargs -r docker stop
+                    docker ps -a --filter "ancestor=${DOCKER_IMAGE}" --format "{{.ID}}" | xargs -r docker rm
+                    """
+
+                    // Delete all old tags except current build
+                    sh """
+                    docker images ${DOCKER_IMAGE} --format "{{.Repository}}:{{.Tag}}" | grep -v ":${env.BUILD_NUMBER}" | xargs -r docker rmi || true
+                    """
+
+                    // Build and tag image
+                    sh "docker build -t ${DOCKER_IMAGE}:${env.BUILD_NUMBER} ."
+                    sh "docker tag ${DOCKER_IMAGE}:${env.BUILD_NUMBER} ${DOCKER_IMAGE}:latest"
                 }
             }
         }
+    }
+}
+
 
         stage('Push Docker Image') {
             steps {
