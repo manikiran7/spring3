@@ -22,7 +22,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
+                wrap([$class: 'AnsiColorBuildWrapper', colorMapName: 'xterm']) {
                     git branch: "${env.BRANCH_NAME}", url: 'https://github.com/manikiran7/spring3.git'
                 }
             }
@@ -30,9 +30,9 @@ pipeline {
 
         stage('Code Quality - SonarQube') {
             steps {
-                wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
-                    withSonarQubeEnv("${SONARQUBE_ENV}") {
-                        sh "mvn clean verify sonar:sonar"
+                wrap([$class: 'AnsiColorBuildWrapper', colorMapName: 'xterm']) {
+                    withSonarQubeEnv("${env.SONARQUBE_ENV}") {
+                        sh 'mvn clean verify sonar:sonar'
                     }
                 }
             }
@@ -40,26 +40,26 @@ pipeline {
 
         stage('Maven Build') {
             steps {
-                wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
-                    sh "mvn clean package -DskipTests"
+                wrap([$class: 'AnsiColorBuildWrapper', colorMapName: 'xterm']) {
+                    sh 'mvn clean package -DskipTests'
                 }
             }
         }
 
         stage('Upload to Nexus') {
             steps {
-                wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
+                wrap([$class: 'AnsiColorBuildWrapper', colorMapName: 'xterm']) {
                     script {
                         def pom = readMavenPom file: 'pom.xml'
                         def artifactPath = "target/${pom.artifactId}-${pom.version}.war"
                         nexusArtifactUploader(
                             nexusVersion: 'nexus3',
                             protocol: 'http',
-                            nexusUrl: NEXUS_URL,
+                            nexusUrl: "${env.NEXUS_URL}",
                             groupId: pom.groupId,
-                            version: BUILD_NUMBER,
-                            repository: NEXUS_REPOSITORY,
-                            credentialsId: NEXUS_CREDENTIAL_ID,
+                            version: "${env.BUILD_NUMBER}",
+                            repository: "${env.NEXUS_REPOSITORY}",
+                            credentialsId: "${env.NEXUS_CREDENTIAL_ID}",
                             artifacts: [[
                                 artifactId: pom.artifactId,
                                 classifier: '',
@@ -74,24 +74,22 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
+                wrap([$class: 'AnsiColorBuildWrapper', colorMapName: 'xterm']) {
                     script {
                         def pom = readMavenPom file: 'pom.xml'
                         def warPath = "target/${pom.artifactId}-${pom.version}.war"
-                        
+
                         if (!fileExists(warPath)) {
-                            error("WAR file not found: ${warPath}")
+                            error "WAR file not found: ${warPath}"
                         }
 
-                        // Clean up old containers and images
                         sh """
-                            docker ps -a --filter "ancestor=${DOCKER_IMAGE}" --format "{{.ID}}" | xargs -r docker stop || true
-                            docker ps -a --filter "ancestor=${DOCKER_IMAGE}" --format "{{.ID}}" | xargs -r docker rm || true
-                            docker images ${DOCKER_IMAGE} --format "{{.Repository}}:{{.Tag}}" | grep -v ":${BUILD_NUMBER}" | xargs -r docker rmi || true
+                            docker ps -a --filter "ancestor=${env.DOCKER_IMAGE}" --format "{{.ID}}" | xargs -r docker stop || true
+                            docker ps -a --filter "ancestor=${env.DOCKER_IMAGE}" --format "{{.ID}}" | xargs -r docker rm || true
+                            docker images ${env.DOCKER_IMAGE} --format "{{.Repository}}:{{.Tag}}" | grep -v ":${BUILD_NUMBER}" | xargs -r docker rmi || true
+                            docker build -t ${env.DOCKER_IMAGE}:${BUILD_NUMBER} .
+                            docker tag ${env.DOCKER_IMAGE}:${BUILD_NUMBER} ${env.DOCKER_IMAGE}:latest
                         """
-
-                        sh "docker build -t ${DOCKER_IMAGE}:${BUILD_NUMBER} ."
-                        sh "docker tag ${DOCKER_IMAGE}:${BUILD_NUMBER} ${DOCKER_IMAGE}:latest"
                     }
                 }
             }
@@ -99,12 +97,12 @@ pipeline {
 
         stage('Push Docker Image') {
             steps {
-                wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
-                    withCredentials([usernamePassword(credentialsId: DOCKERHUB_CREDENTIALS, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                wrap([$class: 'AnsiColorBuildWrapper', colorMapName: 'xterm']) {
+                    withCredentials([usernamePassword(credentialsId: "${env.DOCKERHUB_CREDENTIALS}", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                         sh """
                             echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                            docker push ${DOCKER_IMAGE}:${BUILD_NUMBER}
-                            docker push ${DOCKER_IMAGE}:latest
+                            docker push ${env.DOCKER_IMAGE}:${BUILD_NUMBER}
+                            docker push ${env.DOCKER_IMAGE}:latest
                             docker logout
                         """
                     }
@@ -114,15 +112,20 @@ pipeline {
 
         stage('Deploy to Tomcat') {
             steps {
-                wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
+                wrap([$class: 'AnsiColorBuildWrapper', colorMapName: 'xterm']) {
                     script {
                         def pom = readMavenPom file: 'pom.xml'
                         def warFile = "target/${pom.artifactId}-${pom.version}.war"
-                        withCredentials([usernamePassword(credentialsId: TOMCAT_CREDENTIALS, usernameVariable: 'TOMCAT_USER', passwordVariable: 'TOMCAT_PASS')]) {
+
+                        if (!fileExists(warFile)) {
+                            error "WAR file not found: ${warFile}"
+                        }
+
+                        withCredentials([usernamePassword(credentialsId: "${env.TOMCAT_CREDENTIALS}", usernameVariable: 'TOMCAT_USER', passwordVariable: 'TOMCAT_PASS')]) {
                             sh """
-                                curl -T ${warFile} \\
+                                curl -T "${warFile}" \\
                                 -u $TOMCAT_USER:$TOMCAT_PASS \\
-                                "${TOMCAT_URL}/deploy?path=/featureapp&update=true"
+                                "${env.TOMCAT_URL}/deploy?path=/featureapp&update=true"
                             """
                         }
                     }
@@ -134,16 +137,19 @@ pipeline {
     post {
         success {
             slackSend(
-                channel: "${SLACK_CHANNEL}",
+                channel: "${env.SLACK_CHANNEL}",
                 color: "good",
-                message: "✅ Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' succeeded: ${env.BUILD_URL}"
+                message: "✅ Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' succeeded: ${env.BUILD_URL}",
+                tokenCredentialId: "${env.SLACK_CREDENTIALS}"
             )
         }
+
         failure {
             slackSend(
-                channel: "${SLACK_CHANNEL}",
+                channel: "${env.SLACK_CHANNEL}",
                 color: "danger",
-                message: "❌ Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' failed: ${env.BUILD_URL}"
+                message: "❌ Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' failed: ${env.BUILD_URL}",
+                tokenCredentialId: "${env.SLACK_CREDENTIALS}"
             )
         }
     }
