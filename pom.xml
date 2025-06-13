@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -8,7 +7,7 @@
     <artifactId>SimpleCustomerApp</artifactId>
     <packaging>war</packaging>
     <version>1.0.0-SNAPSHOT</version>
-    <name>SimpleCustomerApp6</name>
+    <name>SimpleCustomerApp</name>
 
     <properties>
         <maven.compiler.source>1.8</maven.compiler.source>
@@ -37,15 +36,17 @@
 
             <plugin>
                 <groupId>org.apache.tomcat.maven</groupId>
-                <artifactId>tomcat7-maven-plugin</artifactId>  <version>2.2</version>
+                <artifactId>tomcat7-maven-plugin</artifactId>
+                <version>2.2</version>
                 <configuration>
                     <url>http://3.84.89.87:8080/manager/text</url>
                     <path>/SimpleCustomerApp</path>
                     <update>true</update>
                     <server>tomcat-server</server>
-                    <tomcatVersion>9.0.105</tomcatVersion> </configuration>
+                    <tomcatVersion>9.0.105</tomcatVersion>
+                </configuration>
             </plugin>
-            </plugins>
+        </plugins>
     </build>
 
     <distributionManagement>
