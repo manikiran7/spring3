@@ -25,7 +25,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: "${env.BRANCH_NAME}", url: 'https://github.com/betawins/spring3-mvc-maven-xml-hello-world-1.git'
+                git branch: "${env.BRANCH_NAME}", url: 'https://github.com/manikiran7/spring3.git'
             }
         }
 
