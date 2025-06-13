@@ -7,7 +7,7 @@ pipeline {
 
     environment {
         SONARQUBE_ENV = 'MySonarQube'
-        NEXUS_CREDENTIAL_ID = 'Nexus_server'
+        NEXUS_CREDENTIAL_ID = 'nexus-new'
         NEXUS_URL = '54.80.161.60:8081'
         NEXUS_REPOSITORY = 'ncodeit-hello-world'
         DOCKER_IMAGE = 'manikiran7/ncodeit-hello-world'
