@@ -16,7 +16,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: env.BRANCH_NAME, url: 'https://github.com/betawins/hiring-app.git'
+                git branch: 'clean-simple', url: 'https://github.com/betawins/hiring-app.git'
             }
         }
 
