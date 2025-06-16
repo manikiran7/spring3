@@ -42,7 +42,7 @@ pipeline {
                     nexusArtifactUploader(
                         nexusVersion: 'nexus3',
                         protocol: 'http',
-                        nexusUrl: '54.80.161.60:8081',
+                        nexusUrl: 'http://3.86.4.253:8081',
                         groupId: pom.groupId,
                         version: pom.version,
                         repository: 'SimpleCustomerApp',
