@@ -23,7 +23,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
-                    git branch: "${env.BRANCH_NAME}", url: 'https://github.com/manikiran7/spring3.git'
+                    git branch: 'main', url: 'https://github.com/manikiran7/spring3.git'
                 }
             }
         }
