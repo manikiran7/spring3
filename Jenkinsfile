@@ -11,6 +11,7 @@ pipeline {
         DOCKERHUB_CREDS = 'dockerhub-creds'
         IMAGE_NAME = 'manikiran7/simple-customer-app'
         SONARQUBE_ENV = 'MySonarQube'
+        NEXUS_URL = 'http://3.86.4.253:8081'
     }
 
     stages {
@@ -42,7 +43,7 @@ pipeline {
                     nexusArtifactUploader(
                         nexusVersion: 'nexus3',
                         protocol: 'http',
-                        nexusUrl: 'http://3.86.4.253:8081',
+                        nexusUrl: NEXUS_URL,
                         groupId: pom.groupId,
                         version: pom.version,
                         repository: 'SimpleCustomerApp',
