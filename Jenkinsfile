@@ -39,7 +39,6 @@ pipeline {
                 script {
                     def pom = readMavenPom file: 'pom.xml'
                     def artifactPath = "target/${pom.artifactId}-${pom.version}.war"
-                    sh "ls -l ${artifactPath}"
                     nexusArtifactUploader(
                         nexusVersion: 'nexus3',
                         protocol: 'http',
@@ -97,11 +96,11 @@ pipeline {
                         sh """
                             # Undeploy old app if exists (ignore errors)
                             curl -s -o /dev/null -w "%{http_code}" -u \$TOMCAT_USER:\$TOMCAT_PASS \\
-                            "http://44.201.244.118:8080/manager/text/undeploy?path=${deployPath}" || true
+                            "http://54.163.1.219:8080/manager/text/undeploy?path=${deployPath}" || true
 
                             # Deploy new WAR
                             curl --fail -u \$TOMCAT_USER:\$TOMCAT_PASS --upload-file ${warFile} \\
-                            "http://44.201.244.118:8080/manager/text/deploy?path=${deployPath}&update=true"
+                            "http://54.163.1.219:8080/manager/text/deploy?path=${deployPath}&update=true"
                         """
                     }
                 }
