@@ -39,6 +39,7 @@ pipeline {
                 script {
                     def pom = readMavenPom file: 'pom.xml'
                     def artifactPath = "target/${pom.artifactId}-${pom.version}.war"
+                    sh "ls -l ${artifactPath}"
                     nexusArtifactUploader(
                         nexusVersion: 'nexus3',
                         protocol: 'http',
