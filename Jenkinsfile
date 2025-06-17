@@ -17,6 +17,8 @@ pipeline {
         TOMCAT_CREDENTIALS = 'tomcat-manager-credentials'
         SLACK_CHANNEL = '#team'
         SLACK_CREDENTIALS = 'slack-token'
+           JAVA_HOME = '/usr/lib/jvm/java-17-amazon-corretto.x86_64'
+        PATH = "${JAVA_HOME}/bin:${env.PATH}"
     }
 
     stages {
