@@ -17,6 +17,8 @@ pipeline {
         TOMCAT_CREDENTIALS = 'tomcat-manager-credentials'
         SLACK_CHANNEL = '#team'
         SLACK_CREDENTIALS = 'slack-token'
+        NVM_DIR = "$HOME/.nvm"
+        PATH = "${NVM_DIR}/versions/node/v16.20.2/bin:${PATH}"
     }
 
     stages {
