@@ -9,11 +9,11 @@ pipeline {
     environment {
         SONARQUBE_ENV = 'MySonarQube'
         NEXUS_CREDENTIAL_ID = 'nexus-new'
-        NEXUS_URL = '3.86.4.253:8081'
+        NEXUS_URL = '3.89.148.170:8081'
         NEXUS_REPOSITORY = 'ncodeit-hello-world'
         DOCKER_IMAGE = 'manikiran7/ncodeit-hello-world'
         DOCKERHUB_CREDENTIALS = 'dockerhub-creds'
-        TOMCAT_URL = 'http://44.201.244.118:8080/manager/text'
+        TOMCAT_URL = 'http://3.91.232.181:8080/manager/text'
         TOMCAT_CREDENTIALS = 'tomcat-manager-credentials'
         SLACK_CHANNEL = '#team'
         SLACK_CREDENTIALS = 'slack-token'
