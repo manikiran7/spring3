@@ -97,11 +97,11 @@ pipeline {
                         sh """
                             # Undeploy old app if exists (ignore errors)
                             curl -s -o /dev/null -w "%{http_code}" -u \$TOMCAT_USER:\$TOMCAT_PASS \\
-                            "http://54.163.1.219:8080/manager/text/undeploy?path=${deployPath}" || true
+                            "http://3.91.232.181:8080/manager/text/undeploy?path=${deployPath}" || true
 
                             # Deploy new WAR
                             curl --fail -u \$TOMCAT_USER:\$TOMCAT_PASS --upload-file ${warFile} \\
-                            "http://54.163.1.219:8080/manager/text/deploy?path=${deployPath}&update=true"
+                            "http://3.91.232.181:8080/manager/text/deploy?path=${deployPath}&update=true"
                         """
                     }
                 }
