@@ -3,7 +3,7 @@ pipeline {
 
     tools {
         maven "Maven3"
-        jdk "Java21"
+        jdk "Java17"
     }
 
     environment {
@@ -17,8 +17,6 @@ pipeline {
         TOMCAT_CREDENTIALS = 'tomcat-manager-credentials'
         SLACK_CHANNEL = '#team'
         SLACK_CREDENTIALS = 'slack-token'
-           JAVA_HOME = '/usr/lib/jvm/java-17-amazon-corretto.x86_64'
-        PATH = "${JAVA_HOME}/bin:${env.PATH}"
     }
 
     stages {
