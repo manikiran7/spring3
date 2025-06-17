@@ -44,7 +44,7 @@
                 <artifactId>tomcat9-maven-plugin</artifactId>
                 <version>2.2</version>
                 <configuration>
-                    <url>http://44.201.244.118:8080/manager/html</url>
+                    <url>http://3.91.232.181:8080/manager/html</url>
                     <server>tomcat-server</server>
                     <path>/featureapp</path>
                     <update>true</update>
@@ -56,7 +56,7 @@
     <distributionManagement>
         <repository>
             <id>nexus</id>
-            <url>http://3.86.4.253:8081/repository/SimpleCustomerApp/</url>
+            <url>http://3.89.148.170:8081/repository/SimpleCustomerApp/</url>
         </repository>
     </distributionManagement>
 </project>
