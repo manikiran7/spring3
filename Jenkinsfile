@@ -11,7 +11,7 @@ pipeline {
         DOCKERHUB_CREDS = 'dockerhub-creds'
         IMAGE_NAME = 'manikiran7/simple-customer-app'
         SONARQUBE_ENV = 'MySonarQube'
-        NEXUS_URL = 'http://3.86.4.253:8081'
+        NEXUS_URL = '3.89.148.170:8081'
     }
 
     stages {
