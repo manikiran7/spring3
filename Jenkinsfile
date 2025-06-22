@@ -52,21 +52,20 @@ pipeline {
             steps {
                 wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
                     script {
-                        def pom = readMavenPom file: 'pom.xml'
-                        def artifactPath = "target/${pom.artifactId}-${pom.version}.war"
+                        def artifactPath = "target/ncodeit-hello-world-3.0.war"
                         nexusArtifactUploader(
                             nexusVersion: 'nexus3',
                             protocol: 'http',
                             nexusUrl: NEXUS_URL,
-                            groupId: pom.groupId,
+                            groupId: 'com.ncodeit',
                             version: BUILD_NUMBER,
                             repository: NEXUS_REPOSITORY,
                             credentialsId: NEXUS_CREDENTIAL_ID,
                             artifacts: [[
-                                artifactId: pom.artifactId,
+                                artifactId: 'ncodeit-hello-world',
                                 classifier: '',
                                 file: artifactPath,
-                                type: pom.packaging
+                                type: 'war'
                             ]]
                         )
                     }
@@ -79,17 +78,16 @@ pipeline {
                 dir("${WORKSPACE}") {
                     wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
                         script {
-                            if (!fileExists("target/ncodeit-hello-world-3.0.war")) {
+                            def warFile = "target/ncodeit-hello-world-3.0.war"
+                            if (!fileExists(warFile)) {
                                 error("WAR file not found! Ensure Maven build was successful.")
                             }
 
-                            // Cleanup old containers using this image
                             sh '''
                             docker ps -a --filter "ancestor=${DOCKER_IMAGE}" --format "{{.ID}}" | xargs -r docker stop
                             docker ps -a --filter "ancestor=${DOCKER_IMAGE}" --format "{{.ID}}" | xargs -r docker rm
                             '''
 
-                            // Delete all old tags except current build
                             sh '''
                             docker images ${DOCKER_IMAGE} --format "{{.Repository}}:{{.Tag}}" | grep -v ":${BUILD_NUMBER}" | xargs -r docker rmi || true
                             '''
@@ -119,15 +117,12 @@ pipeline {
         stage('Deploy to Tomcat') {
             steps {
                 wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
-                    script {
-                        def pom = readMavenPom file: 'pom.xml'
-                        withCredentials([usernamePassword(credentialsId: TOMCAT_CREDENTIALS, usernameVariable: 'TOMCAT_USER', passwordVariable: 'TOMCAT_PASS')]) {
-                            sh """
-                            curl -T target/${pom.artifactId}-${pom.version}.war \\
-                            -u $TOMCAT_USER:$TOMCAT_PASS \\
-                            "${TOMCAT_URL}/deploy?path=/maniapp&update=true"
-                            """
-                        }
+                    withCredentials([usernamePassword(credentialsId: TOMCAT_CREDENTIALS, usernameVariable: 'TOMCAT_USER', passwordVariable: 'TOMCAT_PASS')]) {
+                        sh """
+                        curl -T target/ncodeit-hello-world-3.0.war \
+                        -u $TOMCAT_USER:$TOMCAT_PASS \
+                        "${TOMCAT_URL}/deploy?path=/maniapp&update=true"
+                        """
                     }
                 }
             }
