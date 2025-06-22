@@ -129,17 +129,20 @@ pipeline {
         }
     }
 
-    post {
-        success {
+ post {
+    success {
+        script {
             slackSend(
-                channel: "${env.SLACK_CHANNEL}",
+                channel: '#team',
                 color: "good",
                 message: "✅ Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' succeeded: ${env.BUILD_URL}"
             )
         }
-        failure {
+    }
+    failure {
+        script {
             slackSend(
-                channel: "${env.SLACK_CHANNEL}",
+                channel: '#team',
                 color: "danger",
                 message: "❌ Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' failed: ${env.BUILD_URL}"
             )
