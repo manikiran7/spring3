@@ -2,7 +2,6 @@ pipeline {
     agent any
 
     tools {
-        git 'Default'
         maven "Maven3"
         jdk "Java21"
     }
@@ -54,12 +53,16 @@ pipeline {
                 wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
                     script {
                         def artifactPath = "target/ncodeit-hello-world-3.0.war"
+                        if (!fileExists(artifactPath)) {
+                            error "WAR file not found: ${artifactPath}"
+                        }
+
                         nexusArtifactUploader(
                             nexusVersion: 'nexus3',
                             protocol: 'http',
                             nexusUrl: NEXUS_URL,
                             groupId: 'com.ncodeit',
-                            version: BUILD_NUMBER,
+                            version: "${BUILD_NUMBER}",
                             repository: NEXUS_REPOSITORY,
                             credentialsId: NEXUS_CREDENTIAL_ID,
                             artifacts: [[
@@ -76,23 +79,21 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                dir("${WORKSPACE}") {
-                    wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
-                        script {
-                            def warFile = "target/ncodeit-hello-world-3.0.war"
-                            if (!fileExists(warFile)) {
-                                error("WAR file not found! Ensure Maven build was successful.")
-                            }
-
-                            sh '''
-                            docker ps -a --filter "ancestor=${DOCKER_IMAGE}" --format "{{.ID}}" | xargs -r docker stop
-                            docker ps -a --filter "ancestor=${DOCKER_IMAGE}" --format "{{.ID}}" | xargs -r docker rm
-                            '''
-
-                            sh '''
-                            docker images ${DOCKER_IMAGE} --format "{{.Repository}}:{{.Tag}}" | grep -v ":${BUILD_NUMBER}" | xargs -r docker rmi || true
-                            '''
+                wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
+                    script {
+                        def warFile = "target/ncodeit-hello-world-3.0.war"
+                        if (!fileExists(warFile)) {
+                            error("WAR file not found! Ensure Maven build was successful.")
                         }
+
+                        // Cleanup old containers and images
+                        sh """
+                        docker ps -a --filter "ancestor=${DOCKER_IMAGE}" --format "{{.ID}}" | xargs -r docker stop || true
+                        docker ps -a --filter "ancestor=${DOCKER_IMAGE}" --format "{{.ID}}" | xargs -r docker rm || true
+                        docker images ${DOCKER_IMAGE} --format "{{.Repository}}:{{.Tag}}" | grep -v ":${BUILD_NUMBER}" | xargs -r docker rmi || true
+                        """
+
+                        // Build image
                         sh "docker build -t ${DOCKER_IMAGE}:${BUILD_NUMBER} ."
                         sh "docker tag ${DOCKER_IMAGE}:${BUILD_NUMBER} ${DOCKER_IMAGE}:latest"
                     }
@@ -130,24 +131,20 @@ pipeline {
         }
     }
 
- post {
-    success {
-        script {
+    post {
+        success {
             slackSend(
-                channel: '#team',
+                channel: "${env.SLACK_CHANNEL}",
                 color: "good",
                 message: "✅ Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' succeeded: ${env.BUILD_URL}"
             )
         }
-    }
-    failure {
-        script {
+        failure {
             slackSend(
-                channel: '#team',
+                channel: "${env.SLACK_CHANNEL}",
                 color: "danger",
                 message: "❌ Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' failed: ${env.BUILD_URL}"
             )
         }
     }
- }
 }
