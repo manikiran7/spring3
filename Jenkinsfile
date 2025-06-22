@@ -11,7 +11,7 @@ pipeline {
         DOCKERHUB_CREDS = 'dockerhub-creds'
         IMAGE_NAME = 'manikiran7/simple-customer-app'
         SONARQUBE_ENV = 'MySonarQube'
-        NEXUS_URL = '3.89.148.170:8081'
+        NEXUS_URL = '35.153.175.117:8081'
     }
 
     stages {
@@ -97,11 +97,11 @@ pipeline {
                         sh """
                             # Undeploy old app if exists (ignore errors)
                             curl -s -o /dev/null -w "%{http_code}" -u \$TOMCAT_USER:\$TOMCAT_PASS \\
-                            "http://3.91.232.181:8080/manager/text/undeploy?path=${deployPath}" || true
+                            "http://13.219.99.189:8080/manager/text/undeploy?path=${deployPath}" || true
 
                             # Deploy new WAR
                             curl --fail -u \$TOMCAT_USER:\$TOMCAT_PASS --upload-file ${warFile} \\
-                            "http://3.91.232.181:8080/manager/text/deploy?path=${deployPath}&update=true"
+                            "http://13.219.99.189:8081/manager/text/deploy?path=${deployPath}&update=true"
                         """
                     }
                 }
