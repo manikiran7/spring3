@@ -132,14 +132,14 @@ pipeline {
     post {
         success {
             slackSend(
-                channel: "${SLACK_CHANNEL}",
+                channel: "${env.SLACK_CHANNEL}",
                 color: "good",
                 message: "✅ Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' succeeded: ${env.BUILD_URL}"
             )
         }
         failure {
             slackSend(
-                channel: "${SLACK_CHANNEL}",
+                channel: "${env.SLACK_CHANNEL}",
                 color: "danger",
                 message: "❌ Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' failed: ${env.BUILD_URL}"
             )
