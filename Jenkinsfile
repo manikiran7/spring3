@@ -3,7 +3,7 @@ pipeline {
 
     tools {
         maven "Maven3"
-        jdk "Java8"   // Use Java11 if your app supports it
+        jdk "Java21"   // Use Java11 if your app supports it
     }
 
     environment {
