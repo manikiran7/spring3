@@ -123,7 +123,7 @@ stage('Deploy to Tomcat') {
                 sh '''
                     curl -v -T target/ncodeit-hello-world-3.0.war \
                     -u $TOMCAT_USER:$TOMCAT_PASS \
-                    "http://13.219.99.189:8080/manager/text/deploy?path=/maniapp&update=true"
+                    "http://13.219.99.189:8081/manager/text/deploy?path=/maniapp&update=true"
                 '''
             }
         }
