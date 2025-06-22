@@ -116,20 +116,20 @@ pipeline {
             }
         }
 
-        stage('Deploy to Tomcat') {
-            steps {
-                wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
-                    withCredentials([usernamePassword(credentialsId: TOMCAT_CREDENTIALS, usernameVariable: 'TOMCAT_USER', passwordVariable: 'TOMCAT_PASS')]) {
-                        sh """
-                        curl -T target/ncodeit-hello-world-3.0.war \
-                        -u $TOMCAT_USER:$TOMCAT_PASS \
-                        "${TOMCAT_URL}/deploy?path=/maniapp&update=true"
-                        """
-                    }
-                }
+stage('Deploy to Tomcat') {
+    steps {
+        wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
+            withCredentials([usernamePassword(credentialsId: 'tomcat-creds', usernameVariable: 'TOMCAT_USER', passwordVariable: 'TOMCAT_PASS')]) {
+                sh '''
+                    curl -v -T target/ncodeit-hello-world-3.0.war \
+                    -u $TOMCAT_USER:$TOMCAT_PASS \
+                    "http://13.219.99.189:8080/manager/text/deploy?path=/maniapp&update=true"
+                '''
             }
         }
     }
+}
+}
 
     post {
         success {
