@@ -19,18 +19,26 @@ pipeline {
         SLACK_CREDENTIALS = 'slack-token'
         NVM_DIR = "$HOME/.nvm"
         PATH = "${NVM_DIR}/versions/node/v16.20.2/bin:${PATH}"
+
+        // Optional toggles
+        SKIP_SONAR = 'false'
+        SKIP_TESTS = 'true'
     }
 
     stages {
         stage('Checkout') {
             steps {
                 wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
+                    deleteDir() // clean workspace
                     git branch: 'main', url: 'https://github.com/manikiran7/spring3.git'
                 }
             }
         }
 
         stage('Code Quality - SonarQube') {
+            when {
+                expression { return env.SKIP_SONAR.toBoolean() == false }
+            }
             steps {
                 wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
                     withSonarQubeEnv("${SONARQUBE_ENV}") {
@@ -43,7 +51,10 @@ pipeline {
         stage('Maven Build') {
             steps {
                 wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
-                    sh "mvn clean package -DskipTests"
+                    script {
+                        def testFlag = env.SKIP_TESTS.toBoolean() ? "-DskipTests" : ""
+                        sh "mvn clean install ${testFlag}"
+                    }
                 }
             }
         }
@@ -86,14 +97,12 @@ pipeline {
                             error("WAR file not found! Ensure Maven build was successful.")
                         }
 
-                        // Cleanup old containers and images
                         sh """
                         docker ps -a --filter "ancestor=${DOCKER_IMAGE}" --format "{{.ID}}" | xargs -r docker stop || true
                         docker ps -a --filter "ancestor=${DOCKER_IMAGE}" --format "{{.ID}}" | xargs -r docker rm || true
                         docker images ${DOCKER_IMAGE} --format "{{.Repository}}:{{.Tag}}" | grep -v ":${BUILD_NUMBER}" | xargs -r docker rmi || true
                         """
 
-                        // Build image
                         sh "docker build -t ${DOCKER_IMAGE}:${BUILD_NUMBER} ."
                         sh "docker tag ${DOCKER_IMAGE}:${BUILD_NUMBER} ${DOCKER_IMAGE}:latest"
                     }
@@ -116,20 +125,20 @@ pipeline {
             }
         }
 
-stage('Deploy to Tomcat') {
-    steps {
-        wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
-            withCredentials([usernamePassword(credentialsId: 'tomcat-manager-credentials', usernameVariable: 'TOMCAT_USER', passwordVariable: 'TOMCAT_PASS')]) {
-                sh '''
-                    curl -v -T target/ncodeit-hello-world-3.0.war \
-                    -u $TOMCAT_USER:$TOMCAT_PASS \
-                    "http://13.219.99.189:8081/manager/text/deploy?path=/maniapp&update=true"
-                '''
+        stage('Deploy to Tomcat') {
+            steps {
+                wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
+                    withCredentials([usernamePassword(credentialsId: 'tomcat-manager-credentials', usernameVariable: 'TOMCAT_USER', passwordVariable: 'TOMCAT_PASS')]) {
+                        sh '''
+                            curl -v -T target/ncodeit-hello-world-3.0.war \
+                            -u $TOMCAT_USER:$TOMCAT_PASS \
+                            "http://13.219.99.189:8081/manager/text/deploy?path=/maniapp&update=true"
+                        '''
+                    }
+                }
             }
         }
     }
-}
-}
 
     post {
         success {
