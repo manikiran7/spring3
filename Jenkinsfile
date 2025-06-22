@@ -25,7 +25,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
-                    checkout scm
+                    git branch: 'main', url: 'https://github.com/manikiran7/spring3.git'
                 }
             }
         }
