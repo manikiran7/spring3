@@ -119,7 +119,7 @@ pipeline {
 stage('Deploy to Tomcat') {
     steps {
         wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
-            withCredentials([usernamePassword(credentialsId: 'tomcat-creds', usernameVariable: 'TOMCAT_USER', passwordVariable: 'TOMCAT_PASS')]) {
+            withCredentials([usernamePassword(credentialsId: 'tomcat-manager-credentials', usernameVariable: 'TOMCAT_USER', passwordVariable: 'TOMCAT_PASS')]) {
                 sh '''
                     curl -v -T target/ncodeit-hello-world-3.0.war \
                     -u $TOMCAT_USER:$TOMCAT_PASS \
