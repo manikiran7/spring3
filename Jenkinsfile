@@ -1,5 +1,5 @@
 pipeline {
-    agent { label 'java' }
+    agent any
 
     tools {
         maven "Maven3"
