@@ -73,4 +73,47 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    def warFile = "target/
+                    def warFile = "target/ncodeit-hello-world-3.0.war"
+                    if (!fileExists(warFile)) {
+                        error("WAR file not found! Ensure Maven build was successful.")
+                    }
+
+                    // Cleanup old containers and images
+                    sh """
+                    docker ps -a --filter "ancestor=${DOCKER_IMAGE}" --format "{{.ID}}" | xargs -r docker stop || true
+                    docker ps -a --filter "ancestor=${DOCKER_IMAGE}" --format "{{.ID}}" | xargs -r docker rm || true
+                    docker images ${DOCKER_IMAGE} --format "{{.Repository}}:{{.Tag}}" | grep -v ":${BUILD_NUMBER}" | xargs -r docker rmi || true
+                    """
+
+                    sh "docker build -t ${DOCKER_IMAGE}:${BUILD_NUMBER} ."
+                    sh "docker tag ${DOCKER_IMAGE}:${BUILD_NUMBER} ${DOCKER_IMAGE}:latest"
+                }
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: DOCKERHUB_CREDENTIALS, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh """
+                    echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                    docker push ${DOCKER_IMAGE}:${BUILD_NUMBER}
+                    docker push ${DOCKER_IMAGE}:latest
+                    docker logout
+                    """
+                }
+            }
+        }
+
+        stage('Deploy to Tomcat') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: TOMCAT_CREDENTIALS, usernameVariable: 'TOMCAT_USER', passwordVariable: 'TOMCAT_PASS')]) {
+                    sh '''
+                        curl -v -T target/ncodeit-hello-world-3.0.war \
+                        -u $TOMCAT_USER:$TOMCAT_PASS \
+                        "http://54.165.182.236:8083/manager/text/deploy?path=/maniapp&update=true"
+                    '''
+                }
+            }
+        }
+    }
+}
