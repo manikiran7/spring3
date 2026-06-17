@@ -1,0 +1,44 @@
+name: Spring3 CI/CD
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+
+  build-sonar-nexus:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout Source
+        uses: actions/checkout@v4
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Build WAR
+        run: mvn clean package
+
+      - name: SonarQube Scan
+        run: |
+          mvn sonar:sonar \
+          -Dsonar.projectKey=spring3 \
+          -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
+          -Dsonar.token=${{ secrets.SONAR_TOKEN }}
+
+      - name: Deploy WAR to Nexus
+        run: |
+          mvn deploy:deploy-file \
+          -DgroupId=com.ncodeit \
+          -DartifactId=ncodeit-hello-world \
+          -Dversion=3.0 \
+          -Dpackaging=war \
+          -Dfile=target/ncodeit-hello-world-3.0.war \
+          -DrepositoryId=nexus \
+          -Durl=${{ secrets.NEXUS_URL }}
