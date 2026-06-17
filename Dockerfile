@@ -1,15 +1,16 @@
-# Use Maven with Java 21 to build the application
-FROM maven:3.9.6-eclipse-temurin-21
+FROM maven:3.9.6-eclipse-temurin-21 AS build
 
 WORKDIR /app
 
-# Copy Maven project files
 COPY pom.xml .
 COPY src ./src
 
-# Build the WAR file
 RUN mvn clean package -DskipTests
 
-# WAR will be available at: /app/target/*.war
+FROM tomcat:10.1-jdk21
 
-# This image is just for building — not for running
+COPY --from=build /app/target/*.war /usr/local/tomcat/webapps/ROOT.war
+
+EXPOSE 8080
+
+CMD ["catalina.sh", "run"]
