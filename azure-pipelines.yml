@@ -1,0 +1,43 @@
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  imageName: 'spring3'
+
+steps:
+
+- task: Maven@4
+  displayName: 'Build Maven Project'
+  inputs:
+    mavenPomFile: 'pom.xml'
+    goals: 'clean package'
+    publishJUnitResults: false
+
+- task: Docker@2
+  displayName: 'Build and Push Docker Image'
+  inputs:
+    containerRegistry: 'acr-connection'
+    repository: 'spring3'
+    command: 'buildAndPush'
+    Dockerfile: '**/Dockerfile'
+    tags: |
+      $(Build.BuildId)
+
+- task: AzureCLI@2
+  displayName: 'Deploy to Azure Web App'
+  inputs:
+    azureSubscription: 'azure-service-connection'
+    scriptType: 'bash'
+    scriptLocation: 'inlineScript'
+    inlineScript: |
+      az webapp config container set \
+      --name spring3-devops0518 \
+      --resource-group devops \
+      --container-image-name devops0518.azurecr.io/spring3:$(Build.BuildId)
+
+      az webapp restart \
+      --name spring3-devops0518 \
+      --resource-group devops
